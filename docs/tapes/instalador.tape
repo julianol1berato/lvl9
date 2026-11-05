@@ -8,7 +8,7 @@ Set Framerate 20
 Set TypingSpeed 35ms
 Source docs/tapes/_inicio.tape
 Sleep 800ms
-Type "curl -fsSL https://raw.githubusercontent.com/9LEVEL/lvl9/main/boot.sh | bash"
+Type "curl -fsSL https://raw.githubusercontent.com/julianol1berato/lvl9/main/boot.sh | bash"
 Sleep 600ms
 Enter
 Wait+Screen@90s /Grupos extras/

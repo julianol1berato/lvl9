@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lvl9 — comando do lvl9 depois de instalado (https://github.com/9LEVEL/lvl9)
+# lvl9 — comando do lvl9 depois de instalado (https://github.com/julianol1berato/lvl9)
 #   lvl9 update            busca a versão nova e reabre o instalador com as suas escolhas
 #   lvl9 diff              o que mudou na máquina em relação ao lvl9
 #   lvl9 doctor            confere se está tudo instalado e funcionando
@@ -33,6 +33,9 @@ cmd_update() {
   (( EUID == 0 )) && { ui_erro "rode como o seu usuário (o lvl9 configura também o root)"; return 1; }
   [[ -d $CLONE/.git ]] || { ui_erro "repositório não encontrado em $CLONE; reinstale com o boot.sh"; return 1; }
   ui_secao "lvl9 update"
+  # o repositório mudou de dono (9LEVEL → julianol1berato): clones antigos passam a apontar direto para ele
+  [[ $(git -C "$CLONE" remote get-url origin 2>/dev/null) == */9LEVEL/lvl9* ]] \
+    && git -C "$CLONE" remote set-url origin https://github.com/julianol1berato/lvl9.git
   git -C "$CLONE" fetch -q origin || { ui_erro "não consegui buscar o GitHub"; return 1; }
   local ref novos
   ref=$(git -C "$CLONE" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || echo origin/main)

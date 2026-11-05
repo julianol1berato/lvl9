@@ -1,5 +1,5 @@
 # shellcheck shell=bash disable=SC2139  # aliases expandem na definição de propósito
-# /usr/local/share/lvl9/bash/rc — configuração do bash do lvl9 (https://github.com/9LEVEL/lvl9)
+# /usr/local/share/lvl9/bash/rc — configuração do bash do lvl9 (https://github.com/julianol1berato/lvl9)
 # Inspirada no setup do Fábio Akita (Omarchy: default/bash). Carregada pelo ~/.bashrc do
 # usuário e do root; o "lvl9 update" atualiza este arquivo, então personalize no ~/.bashrc.
 

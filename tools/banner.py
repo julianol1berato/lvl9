@@ -81,8 +81,8 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{
   <text x="{tx}" y="187" font-family="{sans}" font-size="19" fill="#a9b1d6">Claude Code em uma linha, no estilo do Omarchy.</text>
 
   <rect x="{tx}" y="226" width="{W - tx - 60}" height="58" rx="12" fill="#16161e" stroke="#2f334d"/>
-  <text x="{tx + 22}" y="262" font-family="{mono}" font-size="16.5" fill="#c0caf5">
-    <tspan fill="#9ece6a">❯</tspan> curl -fsSL <tspan fill="#7aa2f7">…/9LEVEL/lvl9/main/boot.sh</tspan> <tspan fill="#bb9af7">|</tspan> bash<tspan fill="#c0caf5"> ▌<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.1s" repeatCount="indefinite"/></tspan>
+  <text x="{tx + 22}" y="262" font-family="{mono}" font-size="15.5" fill="#c0caf5">
+    <tspan fill="#9ece6a">❯</tspan> curl -fsSL <tspan fill="#7aa2f7">…/julianol1berato/lvl9/main/boot.sh</tspan> <tspan fill="#bb9af7">|</tspan> bash<tspan fill="#c0caf5"> ▌<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.1s" repeatCount="indefinite"/></tspan>
   </text>
 
   <g font-family="{mono}" font-size="13.5" fill="#565f89">

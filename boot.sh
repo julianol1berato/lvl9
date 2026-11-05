@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# lvl9 — pré-setup Debian/Ubuntu + XFCE + xrdp no estilo Omarchy (https://github.com/9LEVEL/lvl9)
+# lvl9 — pré-setup Debian/Ubuntu + XFCE + xrdp no estilo Omarchy (https://github.com/julianol1berato/lvl9)
 #
-#   curl -fsSL https://raw.githubusercontent.com/9LEVEL/lvl9/main/boot.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/julianol1berato/lvl9/main/boot.sh | bash
 #
 # Instala o git, clona o lvl9 em ~/.local/share/lvl9 e abre o instalador.
 # Tudo fica dentro de main(), chamada só na última linha: se o download for interrompido
@@ -9,7 +9,7 @@
 set -euo pipefail
 
 main() {
-  local repo=${LVL9_URL:-https://github.com/9LEVEL/lvl9.git}
+  local repo=${LVL9_URL:-https://github.com/julianol1berato/lvl9.git}
   local ref=${LVL9_REF:-main}
   local destino="$HOME/.local/share/lvl9"
   local roxo=$'\e[38;2;187;154;247m' cinza=$'\e[38;2;86;95;137m' verm=$'\e[38;2;247;118;142m' rst=$'\e[0m'

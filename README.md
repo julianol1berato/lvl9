@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/9LEVEL/lvl9/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/9LEVEL/lvl9/test.yml?branch=main&label=testes&style=flat-square&labelColor=1a1b26&color=9ece6a" alt="Testes"></a>
-  <a href="https://github.com/9LEVEL/lvl9/releases"><img src="https://img.shields.io/github/v/tag/9LEVEL/lvl9?label=vers%C3%A3o&style=flat-square&labelColor=1a1b26&color=7aa2f7" alt="Versão"></a>
+  <a href="https://github.com/julianol1berato/lvl9/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/julianol1berato/lvl9/test.yml?branch=main&label=testes&style=flat-square&labelColor=1a1b26&color=9ece6a" alt="Testes"></a>
+  <a href="https://github.com/julianol1berato/lvl9/releases"><img src="https://img.shields.io/github/v/tag/julianol1berato/lvl9?label=vers%C3%A3o&style=flat-square&labelColor=1a1b26&color=7aa2f7" alt="Versão"></a>
   <img src="https://img.shields.io/badge/Debian-12%20%C2%B7%2013-bb9af7?style=flat-square&labelColor=1a1b26&logo=debian&logoColor=c0caf5" alt="Debian 12 e 13">
   <img src="https://img.shields.io/badge/Ubuntu-24.04%20%C2%B7%2026.04-bb9af7?style=flat-square&labelColor=1a1b26&logo=ubuntu&logoColor=c0caf5" alt="Ubuntu 24.04 e 26.04">
   <a href="LICENSE"><img src="https://img.shields.io/badge/licen%C3%A7a-MIT-e0af68?style=flat-square&labelColor=1a1b26" alt="Licença MIT"></a>
@@ -32,7 +32,7 @@ São uma linha no terminal e uma tela de instalação. **Sem flags e sem nada pa
 ## ⚡ Instalar
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/9LEVEL/lvl9/main/boot.sh | bash
+curl -fsSL https://raw.githubusercontent.com/julianol1berato/lvl9/main/boot.sh | bash
 ```
 
 Rode como **o seu usuário**, não como root. O lvl9 pede a senha do sudo uma vez e configura

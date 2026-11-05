@@ -1,0 +1,28 @@
+# De hora em hora: faz o merge dos PRs do dono do repositório (e do bot de versões) que estão
+# há 1 dia sem commits novos e com os testes verdes. PRs de outras pessoas nunca entram
+# sozinhos. Para segurar um PR, ponha o rótulo "segurar". Regras em tools/auto-merge.sh.
+name: Auto-merge
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge dos PRs prontos
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ESPERA_HORAS: "24"
+        run: tools/auto-merge.sh

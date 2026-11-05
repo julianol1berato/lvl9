@@ -187,6 +187,9 @@ lvl9 dicas on|off · lvl9 fastfetch on|off
   [`versions.lock`](versions.lock), com sha256. Se o download não bater, a instalação para. Toda
   semana, um GitHub Action procura versões novas, confere com os checksums publicados pelos
   projetos e abre um pull request. Depois do merge, `lvl9 update` traz as novidades.
+- **Auto-merge só do que é seu.** PRs do dono do repositório e do bot de versões entram sozinhos
+  1 dia depois do último commit, com os testes verdes. Para segurar um, ponha o rótulo `segurar`.
+  PRs de outras pessoas, vindos de fork, e os que mexem nos workflows esperam o merge manual.
   Claude Code, herdr e Tailscale usam os instaladores oficiais, que conferem o próprio download e
   se atualizam sozinhos.
 - **O root nunca lê configuração de um home.** Temas do starship podem executar comandos, então o
@@ -281,7 +284,7 @@ ferramentas.tsv      o que é instalado e de onde vem
 versions.lock        versões e sha256 (gerado por tools/bump-versions.sh)
 tests/               instalação completa em containers limpos: tests/docker.sh [imagem…]
 docs/                banner, cenas das screenshots (docs/tapes) e imagens (docs/img)
-tools/               bump-versions.sh · screenshots.sh · banner.py
+tools/               bump-versions.sh · auto-merge.sh · screenshots.sh · banner.py
 ```
 </details>
 
@@ -294,6 +297,7 @@ tests/docker.sh ubuntu:24.04    # só uma
 LVL9_MODO=desktop tests/docker.sh debian:13   # o container não tem interface: sem isso é servidor
 tools/screenshots.sh            # regrava as imagens deste README (tudo em Docker)
 tools/bump-versions.sh          # atualiza o versions.lock com as últimas versões
+tools/auto-merge.sh --simula    # mostra o que o auto-merge faria com os PRs abertos
 ```
 
 Issues e pull requests são bem-vindos.

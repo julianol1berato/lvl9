@@ -2,12 +2,14 @@
 # tools/auto-merge.sh — merge automático dos PRs do próprio dono do repositório.
 #
 # Entra sozinho o PR para a main que:
-#   · foi aberto pelo dono do repositório ou pelo bot de versões (o workflow deste repo);
+#   · foi aberto pelo dono do repositório;
 #   · vem de uma branch deste repositório, não de fork (só quem tem escrita faz push nela);
 #   · não é rascunho e não tem o rótulo "segurar";
 #   · está há ESPERA_HORAS (24) sem commits novos: é a sua janela para olhar ou segurar;
 #   · tem os testes do GitHub (shellcheck e testes rápidos) rodados e todos verdes.
 # PRs de outras pessoas nunca entram sozinhos: ficam para a sua aprovação e o seu merge.
+# PRs de versões (do bot) também não: as versões novas não passam por um teste de
+# instalação no GitHub, então o merge é manual, depois do tests/docker.sh local.
 # PRs que mexem em .github/workflows também ficam para o merge manual: o token do Actions
 # não pode alterar workflows (e é bom que um workflow não mude os outros sozinho).
 #
@@ -36,7 +38,8 @@ checks() {
 
 while IFS=$'\t' read -r n autor fork rascunho segurar sha branch titulo; do
   pr="#$n $titulo"
-  if [[ $autor != "$dono" && $autor != app/github-actions ]]; then log "· $pr: de $autor, espera a sua aprovação"; continue; fi
+  if [[ $autor == app/github-actions ]]; then log "· $pr: PR de versões, merge manual (tests/docker.sh antes)"; continue; fi
+  if [[ $autor != "$dono" ]]; then log "· $pr: de $autor, espera a sua aprovação"; continue; fi
   if [[ $fork == true ]]; then log "· $pr: vem de fork, espera a sua aprovação"; continue; fi
   if [[ $rascunho == true ]]; then log "· $pr: rascunho"; continue; fi
   if [[ $segurar == true ]]; then log "· $pr: segurado (rótulo segurar)"; continue; fi

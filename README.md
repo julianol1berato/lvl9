@@ -187,10 +187,10 @@ lvl9 dicas on|off · lvl9 fastfetch on|off
   [`versions.lock`](versions.lock), com sha256. Se o download não bater, a instalação para. Toda
   semana, um GitHub Action procura versões novas, confere com os checksums publicados pelos
   projetos e abre um pull request. Depois do merge, `lvl9 update` traz as novidades.
-- **Auto-merge só do que é seu.** PRs do dono do repositório e do bot de versões entram sozinhos
-  1 dia depois do último commit, com o shellcheck e os testes rápidos verdes. Para segurar um,
-  ponha o rótulo `segurar`. PRs de outras pessoas, vindos de fork, e os que mexem nos workflows
-  esperam o merge manual.
+- **Auto-merge só do que é seu.** PRs do dono do repositório entram sozinhos 1 dia depois do
+  último commit, com o shellcheck e os testes rápidos verdes. Para segurar um, ponha o rótulo
+  `segurar`. Os PRs de versões esperam o merge manual, depois do `tests/docker.sh`, porque o GitHub
+  não testa a instalação. Os de outras pessoas, de fork e os que mexem nos workflows também.
   Claude Code, herdr e Tailscale usam os instaladores oficiais, que conferem o próprio download e
   se atualizam sozinhos.
 - **O root nunca lê configuração de um home.** Temas do starship podem executar comandos, então o

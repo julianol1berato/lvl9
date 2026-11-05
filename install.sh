@@ -43,10 +43,21 @@ fi
 
 if [[ $ARCH == nao-suportada ]]; then ui_check erro "Arquitetura" "$(uname -m)"; exit 1; fi
 ui_check ok "Arquitetura" "$ARCH"
-if tem xfce4-session; then ui_check ok "Desktop" "XFCE"; else ui_check aviso "Desktop" "XFCE não encontrado (será instalado)"; fi
-if [[ -n ${XRDP_SESSION:-} ]]; then ui_check ok "Sessão" "xrdp"
-elif [[ -n ${DISPLAY:-} ]]; then ui_check ok "Sessão" "gráfica local"
-else ui_check aviso "Sessão" "sem interface gráfica (ajustes do XFCE no próximo login)"; fi
+# Modo: sem interface gráfica instalada, o lvl9 é de servidor e não instala nada gráfico
+LVL9_MODO=$(lvl9_modo)
+case $LVL9_MODO in
+  servidor)
+    ui_check ok "Modo" "servidor (nada gráfico é instalado)" ;;
+  desktop)
+    ui_check ok "Modo" "desktop"
+    if tem xfce4-session; then ui_check ok "Desktop" "XFCE"; else ui_check aviso "Desktop" "XFCE não encontrado (será instalado)"; fi
+    if [[ -n ${XRDP_SESSION:-} ]]; then ui_check ok "Sessão" "xrdp"
+    elif [[ -n ${DISPLAY:-} ]]; then ui_check ok "Sessão" "gráfica local"
+    else ui_check aviso "Sessão" "fora da sessão gráfica (ajustes do XFCE no próximo login)"; fi ;;
+  *)
+    ui_check erro "Modo" "$LVL9_MODO"; ui_texto "Use LVL9_MODO=desktop ou LVL9_MODO=servidor."; exit 1 ;;
+esac
+export LVL9_MODO
 tem_systemd && ui_check ok "Init" "systemd" || ui_check aviso "Init" "sem systemd (container?)"
 
 # sudo: pede a senha uma vez e mantém viva enquanto o instalador roda
@@ -73,12 +84,18 @@ fi
 # ─── 2. Escolhas ────────────────────────────────────────────────────
 # Padrões: o que foi escolhido da última vez (ou tudo marcado, na primeira)
 LVL9_GRUPOS="base dev sysadmin rede" LVL9_TEMA=tokyo-night LVL9_TAILSCALE=nao LVL9_CLAUDE=sim
+modo=$LVL9_MODO
 # shellcheck disable=SC1091
 [[ -f $LVL9_CONFIG/escolhas ]] && source "$LVL9_CONFIG/escolhas"
+LVL9_MODO=$modo   # já decidido nas verificações (o LVL9_MODO do ambiente vale mais que o salvo)
 
 ui_secao "Componentes"
 ui_texto "Sempre instalados: starship · eza · bat · fd · rg · fzf · zoxide · jq · fastfetch · btop"
-ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · XFCE · xrdp · flameshot"
+if [[ $LVL9_MODO == desktop ]]; then
+  ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · XFCE · xrdp · flameshot"
+else
+  ui_texto "gum · mise + Node · gh · vim halcyon · tmux · sem nada gráfico (modo servidor)"
+fi
 printf '\n'
 sel=()
 for g in dev sysadmin rede; do grupo_ativo "$g" && sel+=("$g"); done
@@ -121,6 +138,7 @@ else LVL9_CLAUDE=nao; ui_texto "  Claude Code (não)"; fi
 sim_nao() { if [[ $1 == sim ]]; then echo sim; else echo não; fi; }
 printf '\n'
 ui_caixa "$(cor "$C_AZUL")${NEG}Pronto para instalar$RST" "" \
+  "modo       $LVL9_MODO" \
   "grupos     $LVL9_GRUPOS" \
   "prompt     $LVL9_TEMA" \
   "tailscale  $(sim_nao "$LVL9_TAILSCALE")" \
@@ -130,8 +148,8 @@ ui_caixa "$(cor "$C_AZUL")${NEG}Pronto para instalar$RST" "" \
 printf '\n'
 ui_confirma "Começar?" sim || { ui_texto "nada foi alterado."; exit 0; }
 
-printf 'LVL9_GRUPOS="%s"\nLVL9_TEMA=%s\nLVL9_TAILSCALE=%s\nLVL9_CLAUDE=%s\n' \
-  "$LVL9_GRUPOS" "$LVL9_TEMA" "$LVL9_TAILSCALE" "$LVL9_CLAUDE" > "$LVL9_CONFIG/escolhas"
+printf 'LVL9_MODO=%s\nLVL9_GRUPOS="%s"\nLVL9_TEMA=%s\nLVL9_TAILSCALE=%s\nLVL9_CLAUDE=%s\n' \
+  "$LVL9_MODO" "$LVL9_GRUPOS" "$LVL9_TEMA" "$LVL9_TAILSCALE" "$LVL9_CLAUDE" > "$LVL9_CONFIG/escolhas"
 export LVL9_GRUPOS LVL9_TEMA LVL9_TAILSCALE LVL9_CLAUDE
 
 # ─── 4. Instalação ──────────────────────────────────────────────────
@@ -139,7 +157,10 @@ ui_secao "Instalando"
 passos=(
   "Sistema, fuso e locale|00-sistema.sh"
   "Ferramentas (versões fixadas)|10-ferramentas.sh"
-  "Nerd Fonts|20-fontes.sh"
+)
+# Fontes e desktop só onde há interface gráfica: num servidor quem desenha é o terminal do cliente
+[[ $LVL9_MODO == desktop ]] && passos+=("Nerd Fonts|20-fontes.sh")
+passos+=(
   "Bash, prompt e comando lvl9|30-shell.sh"
   "mise + Node LTS|40-mise.sh"
   "Vim halcyon|50-vim.sh"
@@ -147,7 +168,7 @@ passos=(
 )
 grupo_ativo dev && passos+=("Git com delta|60-git.sh")
 grupo_ativo sysadmin && passos+=("Docker Engine|70-docker.sh")
-passos+=("XFCE, terminal e flameshot|80-desktop.sh" "xrdp|85-xrdp.sh")
+[[ $LVL9_MODO == desktop ]] && passos+=("XFCE, terminal e flameshot|80-desktop.sh" "xrdp|85-xrdp.sh")
 [[ $LVL9_TAILSCALE == sim ]] && passos+=("Tailscale|90-tailscale.sh")
 [[ $LVL9_CLAUDE == sim ]] && passos+=("Claude Code + statusbar + herdr|95-claude.sh")
 

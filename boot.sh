@@ -25,7 +25,9 @@ main() {
   # Teclado vem do /dev/tty (a entrada padrão é o próprio script, via curl | bash)
   if ! sudo -n true 2>/dev/null; then
     printf ' %ssenha do sudo (uma vez só):%s\n' "$cinza" "$rst"
-    if [[ -t 0 ]]; then sudo -v; else sudo -v </dev/tty; fi
+    if [[ -t 0 ]]; then sudo -v
+    elif { true </dev/tty; } 2>/dev/null; then sudo -v </dev/tty
+    else erro "sem terminal para pedir a senha: libere o sudo sem senha ou rode num terminal"; fi
   fi
 
   if ! command -v git >/dev/null || ! command -v curl >/dev/null; then
@@ -46,7 +48,8 @@ main() {
   fi
   printf ' %s✔%s lvl9 em %s\n' "$roxo" "$rst" "$destino"
 
-  if [[ ${LVL9_AUTO:-} == 1 || -t 0 ]]; then exec bash "$destino/install.sh"
+  # Sem terminal nenhum (Claude Code, CI, ssh sem -t) o install.sh segue sem perguntas
+  if [[ ${LVL9_AUTO:-} == 1 || -t 0 ]] || ! { true </dev/tty; } 2>/dev/null; then exec bash "$destino/install.sh"
   else exec bash "$destino/install.sh" </dev/tty
   fi
 }

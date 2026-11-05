@@ -4,6 +4,7 @@ set -uo pipefail
 # shellcheck source=../lib/comum.sh
 source ~/.local/share/lvl9/lib/comum.sh
 ok=0 erro=0
+modo=$(lvl9_modo)
 confere() {   # confere "descrição" comando...
   local d=$1; shift
   if "$@" &>/tmp/verifica.out; then echo "  ✔ $d"; (( ok++ ))
@@ -24,7 +25,7 @@ done < ~/.local/share/lvl9/ferramentas.tsv
 echo "== sistema =="
 confere "fuso America/Sao_Paulo" bash -c '[[ $(readlink -f /etc/localtime) == */America/Sao_Paulo ]]'
 confere "locale pt_BR.UTF-8" bash -c 'locale -a | grep -qiE "^pt_BR\.utf-?8$"'
-confere "Nerd Fonts" bash -c 'fc-list | grep -q "JetBrainsMono Nerd Font" && fc-list | grep -q "CaskaydiaMono Nerd Font"'
+[[ $modo == desktop ]] && confere "Nerd Fonts" bash -c 'fc-list | grep -q "JetBrainsMono Nerd Font" && fc-list | grep -q "CaskaydiaMono Nerd Font"'
 
 echo "== shell =="
 confere "bashrc do usuário carrega o lvl9" grep -q 'lvl9/bash/rc' ~/.bashrc
@@ -46,13 +47,24 @@ confere "vim do root: plugins" sudo bash -c '[[ $(ls /root/.vim/plugged | wc -l)
 confere "sudo vim: coc.nvim acha o node" sudo vim -E -s -u /root/.vimrc -c 'if !executable(get(g:, "coc_node_path", "node")) | cquit | endif' -c 'qa!' </dev/null
 confere "tmux.conf válido" tmux -f ~/.tmux.conf start-server \; kill-server
 
-echo "== desktop e serviços =="
-confere "xrdp + xorgxrdp" dpkg -s xrdp xorgxrdp
-confere "flameshot" dpkg -s flameshot
-confere "XFCE" command -v xfce4-session
-confere "esquema Tokyo Night do terminal" test -f /usr/share/xfce4/terminal/colorschemes/lvl9-tokyo-night.theme
-confere "ajuste do XFCE agendado para o login" test -f ~/.config/autostart/lvl9-desktop.desktop
-confere "regra polkit do colord" sudo test -f /etc/polkit-1/rules.d/45-lvl9-colord.rules
+if [[ $modo == desktop ]]; then
+  echo "== desktop =="
+  confere "xrdp + xorgxrdp" dpkg -s xrdp xorgxrdp
+  confere "flameshot" dpkg -s flameshot
+  confere "XFCE" command -v xfce4-session
+  confere "esquema Tokyo Night do terminal" test -f /usr/share/xfce4/terminal/colorschemes/lvl9-tokyo-night.theme
+  confere "ajuste do XFCE agendado para o login" test -f ~/.config/autostart/lvl9-desktop.desktop
+  confere "regra polkit do colord" sudo test -f /etc/polkit-1/rules.d/45-lvl9-colord.rules
+else
+  echo "== servidor: nada gráfico =="
+  confere "modo servidor salvo nas escolhas" grep -qx 'LVL9_MODO=servidor' ~/.config/lvl9/escolhas
+  confere "continua sem interface gráfica" bash -c 'source ~/.local/share/lvl9/lib/comum.sh; ! tem_interface_grafica'
+  confere "nenhum pacote gráfico" bash -c 'for p in xserver-xorg-core xorg xfce4 xfce4-session xrdp xorgxrdp flameshot xclip fontconfig libgtk-3-0 libgtk-3-0t64 dbus-x11; do
+    dpkg-query -W -f="\${Status}" "$p" 2>/dev/null | grep -q "ok installed" && { echo "instalado: $p"; exit 1; }; done; exit 0'
+  confere "sem Nerd Fonts nem ajuste do XFCE" bash -c '! test -e /usr/local/share/fonts/lvl9 && ! test -e ~/.config/autostart/lvl9-desktop.desktop'
+  confere "tmux sem xclip carrega limpo" bash -c 'tmux -f ~/.tmux.conf new-session -d -s t && tmux show -s copy-command | grep -qv xclip; r=$?; tmux kill-server; exit $r'
+fi
+echo "== serviços =="
 confere "docker" command -v docker
 confere "usuário no grupo docker" bash -c 'getent group docker | grep -qw teste'
 confere "tailscale" command -v tailscale

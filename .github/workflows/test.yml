@@ -1,4 +1,5 @@
-# shellcheck + instalação completa em containers limpos das 4 distros suportadas
+# shellcheck + instalação completa em containers limpos das 4 distros suportadas,
+# no modo desktop (XFCE, xrdp…) e no modo servidor (nada gráfico)
 name: Testes
 
 on:
@@ -26,9 +27,12 @@ jobs:
       fail-fast: false
       matrix:
         imagem: ["debian:12", "debian:13", "ubuntu:24.04", "ubuntu:26.04"]
+        modo: [desktop, servidor]
     steps:
       - uses: actions/checkout@v4
-      - name: Instala o lvl9 em ${{ matrix.imagem }}
+      - name: Instala o lvl9 em ${{ matrix.imagem }} (${{ matrix.modo }})
+        env:
+          LVL9_MODO: ${{ matrix.modo }}
         run: tests/docker.sh "${{ matrix.imagem }}"
       - name: Log
         if: always()

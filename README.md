@@ -21,11 +21,12 @@
 
 ---
 
-O **lvl9** pega um Debian ou Ubuntu recém-instalado com XFCE e deixa a máquina pronta para
-trabalhar, no estilo do [Omarchy](https://github.com/basecamp/omarchy) e do setup do
-[Fábio Akita](https://github.com/akitaonrails). Você ganha um prompt powerline com git, IP e relógio,
-a CLI moderna escrita em Rust e Go, o vim com o tema halcyon, tmux, Nerd Fonts, flameshot no
-PrintScreen, xrdp redondo e, se quiser, Claude Code com statusbar e herdr.
+O **lvl9** pega um Debian ou Ubuntu recém-instalado, desktop com XFCE ou servidor sem interface
+gráfica, e deixa a máquina pronta para trabalhar, no estilo do [Omarchy](https://github.com/basecamp/omarchy)
+e do setup do [Fábio Akita](https://github.com/akitaonrails). Você ganha um prompt powerline com git,
+IP e relógio, a CLI moderna escrita em Rust e Go, o vim com o tema halcyon, tmux e, se quiser,
+Claude Code com statusbar e herdr. No desktop vêm também Nerd Fonts, flameshot no PrintScreen e
+xrdp redondo.
 
 São uma linha no terminal e uma tela de instalação. **Sem flags e sem nada para decorar.**
 
@@ -38,6 +39,10 @@ curl -fsSL https://raw.githubusercontent.com/julianol1berato/lvl9/main/boot.sh |
 Rode como **o seu usuário**, não como root. O lvl9 pede a senha do sudo uma vez e configura
 **o seu usuário e o root**. Em uma máquina nova leva de 5 a 10 minutos, e pode rodar de novo
 quando quiser: cada passo só mexe no que mudou e guarda backup do que substitui.
+
+**O lvl9 respeita o host.** Numa máquina sem interface gráfica ele entra no **modo servidor** e não
+instala nada gráfico: nem XFCE, nem xrdp, nem fontes. Onde já existe um desktop, ele configura
+também o XFCE e o xrdp.
 
 <p align="center">
   <img src="docs/img/instalador.gif" alt="O instalador: verificações, escolhas no gum, passos e resumo" width="100%">
@@ -150,11 +155,13 @@ Marque **Claude Code** na instalação e ele vem completo, no seu usuário e no 
 | **Sysadmin** | Docker Engine · lazydocker · dust · duf · procs |
 | **Rede** | nmap · doggo · gping · trippy · bandwhich · tcpdump · socat · mtr |
 | **Shell** | bash no estilo do Akita, prompt com 5 temas, aliases em inglês e pt-BR, `Alt+H`, fastfetch e dica ao abrir |
-| **Editor e terminal** | vim halcyon · tmux Tokyo Night (prefixo `Ctrl+a`) · JetBrainsMono e CaskaydiaMono Nerd Font |
-| **Desktop** | XFCE · xfce4-terminal com Nerd Font e Tokyo Night · flameshot em `Print` e `Super+Shift+S` |
-| **xrdp** | sessão XFCE · som pelo RDP · sem o pedido de senha do colord a cada login |
+| **Editor e terminal** | vim halcyon · tmux Tokyo Night (prefixo `Ctrl+a`) |
+| **Desktop** ¹ | XFCE · xfce4-terminal com Nerd Font e Tokyo Night · JetBrainsMono e CaskaydiaMono Nerd Font · flameshot em `Print` e `Super+Shift+S` |
+| **xrdp** ¹ | sessão XFCE · som pelo RDP · sem o pedido de senha do colord a cada login |
 | **Sistema** | fuso America/Sao_Paulo com NTP · locale pt_BR.UTF-8 |
 | **Opcional** | Tailscale · Claude Code + statusbar-claude + herdr |
+
+¹ Só no modo desktop. Num servidor sem interface gráfica nada disso é instalado.
 
 Os grupos **Dev**, **Sysadmin** e **Rede** vêm marcados. Desmarque na tela o que não quiser.
 
@@ -191,7 +198,7 @@ lvl9 dicas on|off · lvl9 fastfetch on|off
 - **XFCE na hora certa.** Instalou de dentro da sessão gráfica? Fonte, cores e atalhos são
   aplicados na hora. Instalou por SSH? São aplicados sozinhos no próximo login.
 - **Testado de verdade.** Cada mudança instala o lvl9 inteiro em containers limpos de Debian 12 e
-  13 e Ubuntu 24.04 e 26.04, e confere 84 itens em cada um.
+  13 e Ubuntu 24.04 e 26.04, nos modos desktop e servidor, e confere mais de 80 itens em cada um.
 
 ## ❓ Perguntas frequentes
 
@@ -237,8 +244,24 @@ Print Screen para abrir a captura de tela</i>.
 <details>
 <summary><b>Funciona em servidor sem interface gráfica?</b></summary>
 <br>
-O lvl9 é pensado para desktop: ele instala XFCE e xrdp se não houver. A parte de terminal (prompt,
-CLI, vim, tmux) é a mesma, mas por enquanto não existe um modo "só servidor".
+Sim. Sem interface gráfica instalada (nenhuma sessão X ou Wayland, nem display manager), o lvl9
+entra sozinho no <b>modo servidor</b>: instala a parte de terminal (prompt, CLI, vim, tmux, Docker,
+Claude Code…) e nada gráfico. Ficam de fora XFCE, xrdp, flameshot, Nerd Fonts e xclip. No tmux, o
+que você copia vai para a área de transferência do seu computador pelo próprio terminal (OSC 52),
+mesmo por SSH.
+<br><br>
+O modo fica salvo e vale para o <code>lvl9 update</code>. Para escolher na mão, use
+<code>LVL9_MODO</code>: <code>curl -fsSL …/boot.sh | LVL9_MODO=desktop bash</code> instala XFCE e
+xrdp num servidor, e <code>LVL9_MODO=servidor</code> faz o contrário.
+</details>
+
+<details>
+<summary><b>Dá para instalar sem tela, por automação ou pelo Claude Code?</b></summary>
+<br>
+Dá. Sem terminal interativo (Claude Code, CI, <code>ssh</code> sem <code>-t</code>), o instalador
+segue sem perguntas, com as escolhas da última instalação ou com os padrões. O sudo precisa
+funcionar sem pedir senha (NOPASSWD), porque não há onde digitá-la. Para forçar esse modo mesmo
+com terminal, use <code>LVL9_AUTO=1</code>.
 </details>
 
 <details>
@@ -265,6 +288,7 @@ tools/               bump-versions.sh · screenshots.sh · banner.py
 ```bash
 tests/docker.sh                 # instala nas 4 distros em containers limpos e confere tudo
 tests/docker.sh ubuntu:24.04    # só uma
+LVL9_MODO=desktop tests/docker.sh debian:13   # o container não tem interface: sem isso é servidor
 tools/screenshots.sh            # regrava as imagens deste README (tudo em Docker)
 tools/bump-versions.sh          # atualiza o versions.lock com as últimas versões
 ```

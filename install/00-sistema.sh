@@ -3,7 +3,7 @@ executa() {
   lvl9_os
   como_root apt-get update -q -o DPkg::Lock::Timeout=300
   apt_instala curl wget git unzip xz-utils bzip2 ca-certificates gnupg vim tmux bash-completion \
-    iproute2 tzdata locales fontconfig python3 xclip less man-db file procps psmisc lsof rsync tree
+    iproute2 tzdata locales python3 less man-db file procps psmisc lsof rsync tree
 
   # Fuso horário: timedatectl quando há systemd; senão (container), o link do /etc/localtime
   if tem_systemd && tem timedatectl; then

@@ -1,5 +1,6 @@
 # lib/ui.sh — tela do instalador: gum com as cores Tokyo Night.
-# Com LVL9_AUTO=1 (usado só nos testes em Docker) nada é perguntado: vale sempre o padrão.
+# Com LVL9_AUTO=1 nada é perguntado: valem as escolhas salvas ou o padrão. Liga sozinho quando
+# não há terminal nenhum (Claude Code, CI, ssh sem -t), onde o gum não teria onde desenhar.
 
 # ─── Paleta Tokyo Night ─────────────────────────────────────────────
 C_AZUL='#7aa2f7' C_CIANO='#7dcfff' C_ROXO='#bb9af7' C_VERDE='#9ece6a'
@@ -19,6 +20,7 @@ export GUM_SPIN_SPINNER_FOREGROUND=$C_ROXO GUM_SPIN_TITLE_FOREGROUND=$C_TEXTO
 export GUM_SPIN_SPINNER=minidot
 
 auto() { [[ ${LVL9_AUTO:-} == 1 ]]; }
+if ! auto && [[ ! -t 0 ]] && ! { true </dev/tty; } 2>/dev/null; then export LVL9_AUTO=1; fi
 
 # ─── Banner ─────────────────────────────────────────────────────────
 # "LVL9" em blocos com degradê azul → roxo, linha a linha
@@ -78,7 +80,7 @@ ui_confirma() {
 # ui_multipla "cabeçalho" "selecionados,separados,por,vírgula" "rótulo:valor"... → valores, um por linha
 ui_multipla() {
   local cab=$1 sel=$2; shift 2
-  if auto; then local o; for o in "$@"; do echo "${o#*:}"; done; return; fi
+  if auto; then local o; for o in "$@"; do [[ ",$sel," == *",${o%:*},"* ]] && echo "${o##*:}"; done; return 0; fi
   gum choose --no-limit --header "$cab" --selected "$sel" --label-delimiter ":" \
     --cursor-prefix "○ " --selected-prefix "◉ " --unselected-prefix "○ " \
     --padding "0 3" --height 12 "$@"

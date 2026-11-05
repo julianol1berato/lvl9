@@ -1,7 +1,9 @@
-# tmux com tema Tokyo Night, prefixo Ctrl+a e área de transferência do X, no usuário e no root
+# tmux com tema Tokyo Night e prefixo Ctrl+a, no usuário e no root
 executa() {
   local alvo
-  apt_instala tmux xclip
+  apt_instala tmux
+  # xclip: o que o tmux copia vai também para a área de transferência do X (só no desktop)
+  if modo_desktop; then apt_instala xclip; fi
   for alvo in usuario root; do
     copia config/tmux.conf "$(home_de "$alvo")/.tmux.conf"
   done

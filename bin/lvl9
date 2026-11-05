@@ -82,9 +82,11 @@ cmd_doctor() {
   local nome grupo tipo problemas=0 escolhas="$HOME/.config/lvl9/escolhas" LVL9_GRUPOS="base dev sysadmin rede"
   # shellcheck disable=SC1090
   [[ -f $escolhas ]] && source "$escolhas"
+  local modo; modo=$(lvl9_modo)
   lvl9_os
   ui_banner
   ui_secao "Sistema"
+  ui_check ok "Modo" "$modo"
   if lvl9_os_suportado; then ui_check ok "Sistema" "$OS_NOME"; else ui_check aviso "Sistema" "$OS_NOME (não testado)"; fi
   ui_check ok "Arquitetura" "$(lvl9_arch)"
   local fuso; fuso=$(readlink -f /etc/localtime | sed 's|.*/zoneinfo/||')
@@ -100,13 +102,17 @@ cmd_doctor() {
     if bin_atualizado "$nome"; then ui_check ok "$nome" "$LOCK_VERSAO"
     else ui_check erro "$nome" "faltando ou fora da versão $LOCK_VERSAO"; (( problemas++ )); fi
   done < "$LVL9_REPO/ferramentas.tsv"
-  # sem pipe: com pipefail, o grep -q fecha o pipe e o fc-list "falha" por SIGPIPE
-  if [[ $(fc-list : family) == *'JetBrainsMono Nerd Font'* ]]; then ui_check ok "Nerd Fonts" "JetBrainsMono, CaskaydiaMono"
-  else ui_check erro "Nerd Fonts" "não encontradas"; (( problemas++ )); fi
+  if [[ $modo == desktop ]]; then
+    # sem pipe: com pipefail, o grep -q fecha o pipe e o fc-list "falha" por SIGPIPE
+    if [[ $(fc-list : family 2>/dev/null) == *'JetBrainsMono Nerd Font'* ]]; then ui_check ok "Nerd Fonts" "JetBrainsMono, CaskaydiaMono"
+    else ui_check erro "Nerd Fonts" "não encontradas"; (( problemas++ )); fi
+  fi
 
   ui_secao "Serviços"
   if tem_systemd; then
-    if systemctl is-active -q xrdp; then ui_check ok "xrdp" "ativo"; else ui_check erro "xrdp" "parado"; (( problemas++ )); fi
+    if [[ $modo == desktop ]]; then
+      if systemctl is-active -q xrdp; then ui_check ok "xrdp" "ativo"; else ui_check erro "xrdp" "parado"; (( problemas++ )); fi
+    fi
     if grupo_ativo sysadmin; then
       if systemctl is-active -q docker; then ui_check ok "docker" "ativo"; else ui_check erro "docker" "parado"; (( problemas++ )); fi
       if [[ " $(id -nG) " == *' docker '* ]]; then ui_check ok "grupo docker" "$USER"

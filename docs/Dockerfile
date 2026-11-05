@@ -11,7 +11,8 @@ RUN apt-get update -qq \
 
 COPY --chown=lvl9:lvl9 . /lvl9-src
 USER lvl9
-ENV LANG=pt_BR.UTF-8 TERM=xterm-256color
+# O container não tem interface gráfica (seria modo servidor): as telas mostram o desktop
+ENV LANG=pt_BR.UTF-8 TERM=xterm-256color LVL9_MODO=desktop
 # Padrões da tela: todos os grupos, tokyo-night, sem Tailscale, com Claude Code
 RUN LVL9_AUTO=1 LVL9_ORIGEM=/lvl9-src bash /lvl9-src/boot.sh
 

@@ -44,6 +44,27 @@ lvl9_arch() {
 tem_systemd() { [[ -d /run/systemd/system ]]; }
 tem() { command -v "$1" &>/dev/null; }
 
+# Interface gráfica já instalada: sessão X/Wayland de algum desktop ou window manager, display
+# manager ou o XFCE. Não olha o $DISPLAY: num servidor o ssh -X também o define.
+tem_interface_grafica() {
+  compgen -G '/usr/share/xsessions/*.desktop' >/dev/null \
+    || compgen -G '/usr/share/wayland-sessions/*.desktop' >/dev/null \
+    || [[ -e /etc/X11/default-display-manager ]] || tem xfce4-session
+}
+
+# Modo da instalação: desktop (XFCE, xrdp, Nerd Fonts, flameshot) ou servidor (nada gráfico).
+# Vale o LVL9_MODO do ambiente; senão o da última instalação; senão o que a máquina já tem:
+# o lvl9 nunca coloca interface gráfica numa máquina que não tinha uma.
+lvl9_modo() {
+  local salvo
+  if [[ -n ${LVL9_MODO:-} ]]; then echo "$LVL9_MODO"; return; fi
+  salvo=$(sed -n 's/^LVL9_MODO=//p' "$LVL9_CONFIG/escolhas" 2>/dev/null)
+  if [[ -n $salvo ]]; then echo "$salvo"
+  elif tem_interface_grafica; then echo desktop
+  else echo servidor; fi
+}
+modo_desktop() { [[ $(lvl9_modo) == desktop ]]; }
+
 # ─── Mensagens (os passos escrevem no log; o install.sh cuida da tela) ──
 info()  { printf '  · %s\n' "$*"; }
 aviso() { printf '  ! %s\n' "$*"; }

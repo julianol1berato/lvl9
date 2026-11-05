@@ -36,7 +36,7 @@ jobs:
           corpo=$(printf '%s\n\n| ferramenta | antes | agora |\n|---|---|---|\n%s\n\n%s' \
             "Versões novas encontradas pelo \`tools/bump-versions.sh\`. Os sha256 foram calculados e, quando o projeto publica checksums, conferidos contra eles." \
             "$mudancas" \
-            "Os testes de instalação (Debian 12/13, Ubuntu 24.04/26.04) rodam neste PR. Com eles verdes, o merge acontece sozinho 1 dia depois (workflow Auto-merge). Para segurar, ponha o rótulo \`segurar\`.")
+            "O shellcheck e os testes rápidos rodam neste PR. A instalação completa não roda no GitHub; para testar estas versões antes, use \`tests/docker.sh\`. Com os testes verdes, o merge acontece sozinho 1 dia depois (workflow Auto-merge). Para segurar, ponha o rótulo \`segurar\`.")
           branch=versoes/atualizacao
           git config user.name "lvl9-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

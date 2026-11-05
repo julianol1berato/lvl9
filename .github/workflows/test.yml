@@ -1,5 +1,6 @@
-# shellcheck + instalação completa em containers limpos das 4 distros suportadas,
-# no modo desktop (XFCE, xrdp…) e no modo servidor (nada gráfico)
+# shellcheck + testes rápidos, sem internet: só leem o repositório, nada de downloads.
+# A instalação completa (4 distros × desktop e servidor) baixa as ferramentas e por isso
+# roda só local, em Docker: tests/docker.sh.
 name: Testes
 
 on:
@@ -16,24 +17,14 @@ jobs:
       - name: shellcheck
         run: |
           shellcheck -x -S warning --shell=bash boot.sh install.sh bin/lvl9 lib/*.sh install/*.sh \
-            tools/bump-versions.sh tools/screenshots.sh tests/*.sh config/bash/rc config/bash/prompt.bash \
+            tools/*.sh tests/*.sh config/bash/rc config/bash/prompt.bash \
             -e SC2034,SC2088,SC2164
 
-  instalacao:
-    needs: shellcheck
+  testes:
+    name: testes (sem internet)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        imagem: ["debian:12", "debian:13", "ubuntu:24.04", "ubuntu:26.04"]
-        modo: [desktop, servidor]
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Instala o lvl9 em ${{ matrix.imagem }} (${{ matrix.modo }})
-        env:
-          LVL9_MODO: ${{ matrix.modo }}
-        run: tests/docker.sh "${{ matrix.imagem }}"
-      - name: Log
-        if: always()
-        run: cat tests/logs/*.log | tail -n 150
+      - name: Detecção do modo, passos, sem terminal e versions.lock
+        run: tests/rapidos.sh

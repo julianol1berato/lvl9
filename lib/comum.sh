@@ -47,9 +47,10 @@ tem() { command -v "$1" &>/dev/null; }
 # Interface gráfica já instalada: sessão X/Wayland de algum desktop ou window manager, display
 # manager ou o XFCE. Não olha o $DISPLAY: num servidor o ssh -X também o define.
 tem_interface_grafica() {
-  compgen -G '/usr/share/xsessions/*.desktop' >/dev/null \
-    || compgen -G '/usr/share/wayland-sessions/*.desktop' >/dev/null \
-    || [[ -e /etc/X11/default-display-manager ]] || tem xfce4-session
+  local r=${LVL9_RAIZ:-}   # só os testes trocam a raiz
+  compgen -G "$r/usr/share/xsessions/*.desktop" >/dev/null \
+    || compgen -G "$r/usr/share/wayland-sessions/*.desktop" >/dev/null \
+    || [[ -e $r/etc/X11/default-display-manager || -x $r/usr/bin/xfce4-session ]]
 }
 
 # Modo da instalação: desktop (XFCE, xrdp, Nerd Fonts, flameshot) ou servidor (nada gráfico).
@@ -64,6 +65,26 @@ lvl9_modo() {
   else echo servidor; fi
 }
 modo_desktop() { [[ $(lvl9_modo) == desktop ]]; }
+
+# Passos da instalação para as escolhas atuais (LVL9_MODO, LVL9_GRUPOS, LVL9_TAILSCALE,
+# LVL9_CLAUDE), um "título|arquivo em install/" por linha, na ordem em que rodam.
+# Fontes e desktop só no modo desktop: num servidor quem desenha é o terminal do cliente.
+lvl9_passos() {
+  local desktop=0; [[ ${LVL9_MODO:-} == desktop ]] && desktop=1
+  echo "Sistema, fuso e locale|00-sistema.sh"
+  echo "Ferramentas (versões fixadas)|10-ferramentas.sh"
+  (( desktop )) && echo "Nerd Fonts|20-fontes.sh"
+  echo "Bash, prompt e comando lvl9|30-shell.sh"
+  echo "mise + Node LTS|40-mise.sh"
+  echo "Vim halcyon|50-vim.sh"
+  echo "tmux|55-tmux.sh"
+  grupo_ativo dev && echo "Git com delta|60-git.sh"
+  grupo_ativo sysadmin && echo "Docker Engine|70-docker.sh"
+  (( desktop )) && printf '%s\n' "XFCE, terminal e flameshot|80-desktop.sh" "xrdp|85-xrdp.sh"
+  [[ ${LVL9_TAILSCALE:-nao} == sim ]] && echo "Tailscale|90-tailscale.sh"
+  [[ ${LVL9_CLAUDE:-nao} == sim ]] && echo "Claude Code + statusbar + herdr|95-claude.sh"
+  return 0
+}
 
 # ─── Mensagens (os passos escrevem no log; o install.sh cuida da tela) ──
 info()  { printf '  · %s\n' "$*"; }

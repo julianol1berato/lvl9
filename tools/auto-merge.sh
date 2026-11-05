@@ -6,7 +6,7 @@
 #   · vem de uma branch deste repositório, não de fork (só quem tem escrita faz push nela);
 #   · não é rascunho e não tem o rótulo "segurar";
 #   · está há ESPERA_HORAS (24) sem commits novos: é a sua janela para olhar ou segurar;
-#   · tem os testes (shellcheck e instalação) rodados e todos verdes.
+#   · tem os testes do GitHub (shellcheck e testes rápidos) rodados e todos verdes.
 # PRs de outras pessoas nunca entram sozinhos: ficam para a sua aprovação e o seu merge.
 # PRs que mexem em .github/workflows também ficam para o merge manual: o token do Actions
 # não pode alterar workflows (e é bom que um workflow não mude os outros sozinho).
@@ -30,7 +30,7 @@ checks() {
        c: (.conclusion // .state)}] as $c
     | if any($c[]; .s != "COMPLETED") then "rodando"
       elif any($c[]; .c | IN("SUCCESS", "SKIPPED", "NEUTRAL") | not) then "falhou"
-      elif (any($c[]; .n == "shellcheck") and any($c[]; .n | startswith("instalacao"))) then "verde"
+      elif (any($c[]; .n == "shellcheck") and any($c[]; .n | startswith("testes"))) then "verde"
       else "sem-testes" end'
 }
 

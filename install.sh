@@ -154,23 +154,7 @@ export LVL9_GRUPOS LVL9_TEMA LVL9_TAILSCALE LVL9_CLAUDE
 
 # ─── 4. Instalação ──────────────────────────────────────────────────
 ui_secao "Instalando"
-passos=(
-  "Sistema, fuso e locale|00-sistema.sh"
-  "Ferramentas (versões fixadas)|10-ferramentas.sh"
-)
-# Fontes e desktop só onde há interface gráfica: num servidor quem desenha é o terminal do cliente
-[[ $LVL9_MODO == desktop ]] && passos+=("Nerd Fonts|20-fontes.sh")
-passos+=(
-  "Bash, prompt e comando lvl9|30-shell.sh"
-  "mise + Node LTS|40-mise.sh"
-  "Vim halcyon|50-vim.sh"
-  "tmux|55-tmux.sh"
-)
-grupo_ativo dev && passos+=("Git com delta|60-git.sh")
-grupo_ativo sysadmin && passos+=("Docker Engine|70-docker.sh")
-[[ $LVL9_MODO == desktop ]] && passos+=("XFCE, terminal e flameshot|80-desktop.sh" "xrdp|85-xrdp.sh")
-[[ $LVL9_TAILSCALE == sim ]] && passos+=("Tailscale|90-tailscale.sh")
-[[ $LVL9_CLAUDE == sim ]] && passos+=("Claude Code + statusbar + herdr|95-claude.sh")
+mapfile -t passos < <(lvl9_passos)
 
 falhas=0 inicio=$SECONDS
 for p in "${passos[@]}"; do

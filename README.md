@@ -197,8 +197,10 @@ lvl9 dicas on|off · lvl9 fastfetch on|off
   atualiza o rc e não mexe mais no seu `~/.bashrc`. Segredos ficam em `~/.bashrc.local`.
 - **XFCE na hora certa.** Instalou de dentro da sessão gráfica? Fonte, cores e atalhos são
   aplicados na hora. Instalou por SSH? São aplicados sozinhos no próximo login.
-- **Testado de verdade.** Cada mudança instala o lvl9 inteiro em containers limpos de Debian 12 e
-  13 e Ubuntu 24.04 e 26.04, nos modos desktop e servidor, e confere mais de 80 itens em cada um.
+- **Testado.** A cada mudança, o GitHub roda o shellcheck e testes rápidos sem internet: detecção
+  do modo, passos de cada modo, instalação sem terminal e o `versions.lock`. A instalação completa
+  baixa as ferramentas, então roda local, em containers limpos de Debian 12 e 13 e Ubuntu 24.04 e
+  26.04, nos dois modos, e confere mais de 80 itens em cada um.
 
 ## ❓ Perguntas frequentes
 
@@ -286,6 +288,7 @@ tools/               bump-versions.sh · screenshots.sh · banner.py
 ## 🤝 Contribuir
 
 ```bash
+tests/rapidos.sh                # testes rápidos, sem internet (é o que o GitHub roda)
 tests/docker.sh                 # instala nas 4 distros em containers limpos e confere tudo
 tests/docker.sh ubuntu:24.04    # só uma
 LVL9_MODO=desktop tests/docker.sh debian:13   # o container não tem interface: sem isso é servidor

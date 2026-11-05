@@ -1,6 +1,6 @@
 # shellcheck + testes rápidos, sem internet: só leem o repositório, nada de downloads.
-# A instalação completa (4 distros × desktop e servidor) baixa as ferramentas e por isso
-# roda só local, em Docker: tests/docker.sh.
+# A instalação completa (4 distros × desktop e servidor) roda na máquina de quem faz o PR,
+# pelo tools/ci.sh, que no fim marca o commit com o status "signoff" que a main exige.
 name: Testes
 
 on:
@@ -15,10 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
-        run: |
-          shellcheck -x -S warning --shell=bash boot.sh install.sh bin/lvl9 lib/*.sh install/*.sh \
-            tools/*.sh tests/*.sh config/bash/rc config/bash/prompt.bash \
-            -e SC2034,SC2088,SC2164
+        run: tests/lint.sh
 
   testes:
     name: testes (sem internet)

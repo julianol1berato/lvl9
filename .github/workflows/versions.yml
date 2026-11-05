@@ -36,7 +36,7 @@ jobs:
           corpo=$(printf '%s\n\n| ferramenta | antes | agora |\n|---|---|---|\n%s\n\n%s' \
             "Versões novas encontradas pelo \`tools/bump-versions.sh\`. Os sha256 foram calculados e, quando o projeto publica checksums, conferidos contra eles." \
             "$mudancas" \
-            "O shellcheck e os testes rápidos rodam neste PR. A instalação completa não roda no GitHub, então o merge é manual: antes, teste estas versões com \`tests/docker.sh\`.")
+            "O shellcheck e os testes rápidos rodam neste PR. A instalação completa roda na sua máquina: \`gh pr checkout versoes/atualizacao && tools/ci.sh\`. Com o signoff verde, faça o merge.")
           branch=versoes/atualizacao
           git config user.name "lvl9-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -187,12 +187,17 @@ lvl9 dicas on|off · lvl9 fastfetch on|off
   [`versions.lock`](versions.lock), com sha256. Se o download não bater, a instalação para. Toda
   semana, um GitHub Action procura versões novas, confere com os checksums publicados pelos
   projetos e abre um pull request. Depois do merge, `lvl9 update` traz as novidades.
-- **Auto-merge só do que é seu.** PRs do dono do repositório entram sozinhos 1 dia depois do
-  último commit, com o shellcheck e os testes rápidos verdes. Para segurar um, ponha o rótulo
-  `segurar`. Os PRs de versões esperam o merge manual, depois do `tests/docker.sh`, porque o GitHub
-  não testa a instalação. Os de outras pessoas, de fork e os que mexem nos workflows também.
   Claude Code, herdr e Tailscale usam os instaladores oficiais, que conferem o próprio download e
   se atualizam sozinhos.
+- **O CI roda na sua máquina, o sinal verde vai para o GitHub.** O `tools/ci.sh` roda o
+  shellcheck, os testes rápidos e a instalação completa nas 4 distros, nos dois modos. Com tudo
+  verde, faz o push e marca o commit com o status `signoff`, o mesmo do
+  [gh signoff](https://github.com/basecamp/gh-signoff). A main exige esse status para o merge. O
+  GitHub roda só o shellcheck e os testes rápidos, sem downloads.
+- **Auto-merge só do que é seu.** PRs do dono do repositório entram sozinhos 1 dia depois do
+  último commit, com o signoff e os testes do GitHub verdes. Para segurar um, ponha o rótulo
+  `segurar`. Os PRs de versões, de outras pessoas, de fork e os que mexem nos workflows esperam o
+  merge manual, depois de `gh pr checkout N && tools/ci.sh`.
 - **O root nunca lê configuração de um home.** Temas do starship podem executar comandos, então o
   prompt, os temas e os aliases ficam em `/usr/local/share/lvl9`, que só o root altera.
 - **Cópia com backup, não symlink.** Tudo o que é substituído vai antes para
@@ -283,16 +288,18 @@ config/              rc do bash, prompt, temas, catálogo de comandos, tmux, fas
 bin/lvl9             o comando lvl9
 ferramentas.tsv      o que é instalado e de onde vem
 versions.lock        versões e sha256 (gerado por tools/bump-versions.sh)
-tests/               instalação completa em containers limpos: tests/docker.sh [imagem…]
+tests/               lint.sh · rapidos.sh · docker.sh (instalação completa em containers limpos)
 docs/                banner, cenas das screenshots (docs/tapes) e imagens (docs/img)
-tools/               bump-versions.sh · auto-merge.sh · screenshots.sh · banner.py
+tools/               ci.sh · bump-versions.sh · auto-merge.sh · screenshots.sh · banner.py
 ```
 </details>
 
 ## 🤝 Contribuir
 
 ```bash
-tests/rapidos.sh                # testes rápidos, sem internet (é o que o GitHub roda)
+tools/ci.sh                     # o CI completo, na sua máquina: tudo verde → push + signoff
+tools/ci.sh --rapido            # só shellcheck e testes rápidos, para ir testando
+tests/rapidos.sh                # testes rápidos, sem internet (o GitHub roda estes e o shellcheck)
 tests/docker.sh                 # instala nas 4 distros em containers limpos e confere tudo
 tests/docker.sh ubuntu:24.04    # só uma
 LVL9_MODO=desktop tests/docker.sh debian:13   # o container não tem interface: sem isso é servidor
@@ -301,7 +308,7 @@ tools/bump-versions.sh          # atualiza o versions.lock com as últimas vers�
 tools/auto-merge.sh --simula    # mostra o que o auto-merge faria com os PRs abertos
 ```
 
-Issues e pull requests são bem-vindos.
+Issues e pull requests são bem-vindos. Antes do merge, o seu PR passa pelo `tools/ci.sh`.
 
 ## Créditos
 

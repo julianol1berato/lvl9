@@ -6,10 +6,10 @@
 #   · vem de uma branch deste repositório, não de fork (só quem tem escrita faz push nela);
 #   · não é rascunho e não tem o rótulo "segurar";
 #   · está há ESPERA_HORAS (24) sem commits novos: é a sua janela para olhar ou segurar;
-#   · tem os testes do GitHub (shellcheck e testes rápidos) rodados e todos verdes.
+#   · tem os testes do GitHub (shellcheck e testes rápidos) e o signoff do CI local
+#     (tools/ci.sh, que instala de verdade nas 4 distros) todos verdes.
 # PRs de outras pessoas nunca entram sozinhos: ficam para a sua aprovação e o seu merge.
-# PRs de versões (do bot) também não: as versões novas não passam por um teste de
-# instalação no GitHub, então o merge é manual, depois do tests/docker.sh local.
+# PRs de versões (do bot) também não: o merge é manual, depois do tools/ci.sh no branch do PR.
 # PRs que mexem em .github/workflows também ficam para o merge manual: o token do Actions
 # não pode alterar workflows (e é bom que um workflow não mude os outros sozinho).
 #
@@ -23,7 +23,7 @@ corte=$(( $(date +%s) - espera * 3600 ))
 falhas=0
 log() { printf '%s\n' "$*"; }
 
-# estado dos checks do commit mais recente do PR: verde | rodando | falhou | sem-testes
+# estado dos checks do commit mais recente do PR: verde | rodando | falhou | sem-testes | sem-signoff
 checks() {
   gh pr view "$1" -R "$repo" --json statusCheckRollup --jq '
     [.statusCheckRollup[] | {
@@ -32,13 +32,14 @@ checks() {
        c: (.conclusion // .state)}] as $c
     | if any($c[]; .s != "COMPLETED") then "rodando"
       elif any($c[]; .c | IN("SUCCESS", "SKIPPED", "NEUTRAL") | not) then "falhou"
-      elif (any($c[]; .n == "shellcheck") and any($c[]; .n | startswith("testes"))) then "verde"
-      else "sem-testes" end'
+      elif (any($c[]; .n == "shellcheck") and any($c[]; .n | startswith("testes")) | not) then "sem-testes"
+      elif any($c[]; .n == "signoff") | not then "sem-signoff (rode tools/ci.sh)"
+      else "verde" end'
 }
 
 while IFS=$'\t' read -r n autor fork rascunho segurar sha branch titulo; do
   pr="#$n $titulo"
-  if [[ $autor == app/github-actions ]]; then log "· $pr: PR de versões, merge manual (tests/docker.sh antes)"; continue; fi
+  if [[ $autor == app/github-actions ]]; then log "· $pr: PR de versões, merge manual (tools/ci.sh antes)"; continue; fi
   if [[ $autor != "$dono" ]]; then log "· $pr: de $autor, espera a sua aprovação"; continue; fi
   if [[ $fork == true ]]; then log "· $pr: vem de fork, espera a sua aprovação"; continue; fi
   if [[ $rascunho == true ]]; then log "· $pr: rascunho"; continue; fi

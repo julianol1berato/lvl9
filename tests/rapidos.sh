@@ -89,7 +89,7 @@ printf 'LVL9_MODO=servidor\n' > "$escolhas"
 confere "modo salvo (já respondeu antes): não pergunta de novo" lvl9 LVL9_RAIZ="$gnome" -- lvl9_modo_escolhido
 rm -f "$escolhas"
 pergunta_segura() {   # a pergunta do XFCE: padrão "não", nunca sem terminal, e só ela liga o desktop
-  local trecho; trecho=$(sed -n '/^if (( pergunta_xfce )); then$/,/^fi$/p' "$raiz/install.sh")
+  local trecho; trecho=$(sed -n '/^if (( pergunta_xfce && ! atualiza )); then$/,/^fi$/p' "$raiz/install.sh")
   [[ -n $trecho ]] || { echo "pergunta do XFCE não encontrada no install.sh"; return 1; }
   grep -q '! auto && ui_confirma "Instalar o XFCE ao lado.*" nao' <<< "$trecho" || { echo "a pergunta precisa de terminal e de padrão não"; return 1; }
   grep -q 'outra_interface && ! lvl9_modo_escolhido' "$raiz/install.sh" || { echo "condição da pergunta mudou"; return 1; }
@@ -101,7 +101,7 @@ confere "XFCE ao lado de outra interface: só com um sim, no terminal" pergunta_
 # ─── Passos da instalação ───────────────────────────────────────────
 echo "== passos de cada modo =="
 passos() { lvl9 "$@" -- lvl9_passos | cut -d'|' -f2 | tr '\n' ' '; }
-tudo=(LVL9_GRUPOS="base dev sysadmin rede" LVL9_TAILSCALE=sim LVL9_CLAUDE=sim)
+tudo=(LVL9_GRUPOS="base dev sysadmin rede" LVL9_XRDP=sim LVL9_TAILSCALE=sim LVL9_CLAUDE=sim)
 confere "servidor: nada de fontes, XFCE ou xrdp" igual \
   "00-sistema.sh 10-ferramentas.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh 60-git.sh 70-docker.sh 90-tailscale.sh 95-claude.sh " \
   passos LVL9_MODO=servidor LVL9_RAIZ="$servidor" "${tudo[@]}"
@@ -111,6 +111,15 @@ confere "outra interface (GNOME): fontes sim, XFCE e xrdp não" igual \
 confere "desktop: com fontes, XFCE e xrdp" igual \
   "00-sistema.sh 10-ferramentas.sh 20-fontes.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh 60-git.sh 70-docker.sh 80-desktop.sh 85-xrdp.sh 90-tailscale.sh 95-claude.sh " \
   passos LVL9_MODO=desktop "${tudo[@]}"
+confere "desktop sem xrdp escolhido: XFCE sim, xrdp não" igual \
+  "00-sistema.sh 10-ferramentas.sh 20-fontes.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh 80-desktop.sh " \
+  passos LVL9_MODO=desktop LVL9_GRUPOS=base LVL9_XRDP=nao LVL9_TAILSCALE=nao LVL9_CLAUDE=nao
+confere "desktop sem resposta sobre o xrdp: não instala" igual \
+  "00-sistema.sh 10-ferramentas.sh 20-fontes.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh 80-desktop.sh " \
+  passos LVL9_MODO=desktop LVL9_GRUPOS=base LVL9_TAILSCALE=nao LVL9_CLAUDE=nao
+confere "xrdp escolhido num servidor não vale: é só do desktop" igual \
+  "00-sistema.sh 10-ferramentas.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh " \
+  passos LVL9_MODO=servidor LVL9_RAIZ="$servidor" LVL9_GRUPOS=base LVL9_XRDP=sim LVL9_TAILSCALE=nao LVL9_CLAUDE=nao
 confere "só o base, sem opcionais" igual \
   "00-sistema.sh 10-ferramentas.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh " \
   passos LVL9_MODO=servidor LVL9_RAIZ="$servidor" LVL9_GRUPOS=base LVL9_TAILSCALE=nao LVL9_CLAUDE=nao
@@ -198,6 +207,115 @@ so_com_snap() {
 }
 confere "ajuste do firmware-notifier: só com o snap e só no desktop" so_com_snap
 confere "ajuste do firmware-notifier: uma condição só, com busctl" bash -c '[[ $(grep -c "^ExecCondition=" "$1") == 1 ]] && grep -q "busctl --user call .* NameHasOwner s org.freedesktop.Notifications" "$1"' _ "$raiz/config/systemd/10-lvl9-notificacoes.conf"
+
+# ─── Rodar de novo não reinstala ────────────────────────────────────
+echo "== apt só quando falta pacote =="
+# dpkg-query, sudo e apt-get falsos: "instalado" é o que está em $FALSO/instalados
+cat > "$tmp/bin/dpkg-query" <<'EOF2'
+#!/bin/sh
+for p; do :; done   # o pacote é o último argumento
+grep -qx "$p" "$FALSO/instalados" 2>/dev/null && printf installed
+EOF2
+cat > "$tmp/bin/sudo" <<'EOF2'
+#!/bin/sh
+[ "$1" = -n ] && shift
+exec "$@"
+EOF2
+cat > "$tmp/bin/apt-get" <<'EOF2'
+#!/bin/sh
+echo "apt-get $*" >> "$FALSO/chamadas"
+case " $* " in
+  *" update "*) [ -e "$FALSO/update-falha" ] && exit 100; exit 0 ;;
+  *" install "*) for p; do case $p in -*|install) ;; *) echo "$p" >> "$FALSO/instalados" ;; esac; done ;;
+esac
+EOF2
+chmod +x "$tmp/bin/dpkg-query" "$tmp/bin/sudo" "$tmp/bin/apt-get"
+zera() { rm -rf "$tmp/home/.local/state/lvl9" "$tmp/falso/chamadas" "$tmp/falso/update-falha"; printf '%s\n' "$@" > "$tmp/falso/instalados"; }
+chamadas() { if [[ -e $tmp/falso/chamadas ]]; then grep -c "$1" "$tmp/falso/chamadas" || true; else echo 0; fi; }
+mudancas() { cat "$tmp/home/.local/state/lvl9/mudancas" 2>/dev/null; }
+
+zera vim tmux
+confere "apt_falta lista só o que não está instalado" igual $'git\ncurl' lvl9 "${com_falso[@]}" -- apt_falta vim git tmux curl
+lvl9 "${com_falso[@]}" -- apt_instala vim tmux >/dev/null 2>&1
+confere "tudo instalado: o apt nem é chamado" igual "0" chamadas apt-get
+confere "tudo instalado: nenhuma mudança registrada" igual "" mudancas
+lvl9 "${com_falso[@]}" LVL9_CARIMBO=rodada1 -- apt_instala vim git curl >/dev/null 2>&1
+confere "faltando pacote: um apt-get update antes" igual "1" chamadas "apt-get update"
+confere "faltando pacote: instala só os que faltam" bash -c 'grep -q "install .* git curl$" "$1" && ! grep -q "install.* vim" "$1"' _ "$tmp/falso/chamadas"
+confere "faltando pacote: a mudança é registrada" igual "pacotes instalados: git curl" mudancas
+lvl9 "${com_falso[@]}" LVL9_CARIMBO=rodada1 -- apt_instala htop >/dev/null 2>&1
+confere "mesma rodada: o apt-get update não se repete" igual "1" chamadas "apt-get update"
+zera vim; : > "$tmp/falso/update-falha"
+update_falha() {
+  local s r; s=$(lvl9 "${com_falso[@]}" LVL9_CARIMBO=rodada2 -- apt_instala git 2>&1); r=$?
+  grep -q '^  ! apt-get update falhou' <<< "$s" && [[ $r == 0 ]] || { echo "saída $r: $s"; return 1; }
+}
+confere "apt-get update com erro vira aviso e a instalação segue" update_falha
+confere "…e o pacote foi instalado mesmo assim" grep -qx git "$tmp/falso/instalados"
+sem_update_solto() {   # só o passo do Docker (repositório novo) chama apt-get update direto
+  ! grep -ln 'apt-get update' "$raiz"/install/*.sh | grep -v '70-docker.sh' || { echo "apt-get update fora do apt_indices"; return 1; }
+}
+confere "nenhum passo roda apt-get update por conta própria" sem_update_solto
+
+echo "== o que mudou de verdade =="
+zera
+echo um > "$tmp/origem.txt"
+copia_duas() { lvl9 -- copia "$tmp/origem.txt" "$tmp/home/destino.txt" >/dev/null 2>&1; }
+copia_duas
+confere "arquivo novo: uma mudança" igual "~/destino.txt (novo)" mudancas
+copia_duas
+confere "copiar de novo o mesmo conteúdo: nada muda" igual "~/destino.txt (novo)" mudancas
+echo dois > "$tmp/origem.txt"; copia_duas
+confere "conteúdo diferente: atualizado, com backup" bash -c '[[ $(tail -n 1 "$1/.local/state/lvl9/mudancas") == "~/destino.txt (atualizado)" ]] && ls "$1"/.local/state/lvl9/backups/*/"$1"/destino.txt >/dev/null' _ "$tmp/home"
+
+# ui_passo: mostra quantas mudanças o passo fez e os avisos dele
+passo_falso() {   # passo_falso corpo → roda um passo de mentira e devolve a linha que a tela mostra
+  mkdir -p "$tmp/repo/install" "$tmp/repo/lib"; cp "$raiz"/lib/*.sh "$tmp/repo/lib/"
+  printf 'executa() {\n%s\n}\n' "$1" > "$tmp/repo/install/99-teste.sh"
+  env -i HOME="$tmp/home" PATH=/usr/bin:/bin LVL9_AUTO=1 LVL9_REPO="$tmp/repo" bash -c '
+    source "$LVL9_REPO/lib/comum.sh"; source "$LVL9_REPO/lib/ui.sh"; mkdir -p "$LVL9_ESTADO"; : > "$LVL9_LOG"; : > "$LVL9_MUDANCAS"
+    ui_passo "Teste" 99-teste.sh' 2>&1 | sed 's/\x1b\[[0-9;]*m//g; s/ [0-9]*s$/ Ns/; s/\.\.\.*/…/'
+}
+confere "passo que não muda nada: sem mudanças" igual "   ✔ Teste … sem mudanças · Ns" passo_falso 'info "nada a fazer"'
+confere "passo com uma mudança" igual "   ✔ Teste … 1 mudança · Ns" passo_falso 'mudou "uma coisa"'
+confere "passo com duas mudanças e um aviso" igual $'   ✔ Teste … 2 mudanças · Ns\n       ! repositório fora do ar' \
+  passo_falso 'mudou a; mudou b; aviso "repositório fora do ar"'
+
+echo "== xrdp é uma escolha =="
+# systemctl falso para o "is-enabled xrdp": habilitado só se existir $FALSO/xrdp-habilitado
+cat > "$tmp/bin/systemctl" <<'EOF2'
+#!/bin/sh
+case " $* " in
+  *" is-enabled "*) [ -e "$FALSO/xrdp-habilitado" ] ;;
+  *" --user "*) cat "$FALSO/usuario" 2>/dev/null ;;
+  *) cat "$FALSO/sistema" 2>/dev/null ;;
+esac
+EOF2
+rm -f "$tmp/falso/xrdp-habilitado"
+confere "LVL9_XRDP=sim vale" igual sim lvl9 "${com_falso[@]}" LVL9_XRDP=sim -- lvl9_xrdp
+confere "LVL9_XRDP=nao vale, mesmo com o serviço habilitado" bash -c ': > "$1/xrdp-habilitado"; shift; [[ $("$@") == nao ]]' _ "$tmp/falso" \
+  env -i HOME="$tmp/home" "${com_falso[@]}" LVL9_XRDP=nao bash -c 'source "$0/lib/comum.sh"; lvl9_xrdp' "$raiz"
+confere "escolhas antigas, serviço habilitado: continua sim" igual sim lvl9 "${com_falso[@]}" -- lvl9_xrdp
+rm -f "$tmp/falso/xrdp-habilitado"
+confere "escolhas antigas, serviço desabilitado: fica não" igual nao lvl9 "${com_falso[@]}" -- lvl9_xrdp
+confere "máquina nova, sem resposta: não" igual nao lvl9 "${com_falso[@]}" -- lvl9_xrdp
+xrdp_pergunta() {
+  grep -q 'ui_confirma "Instalar o xrdp (área de trabalho remota: abre a porta 3389 na rede)?" "$LVL9_XRDP"' "$raiz/install.sh" || { echo "falta a pergunta do xrdp"; return 1; }
+  grep -q 'LVL9_XRDP=%s' "$raiz/install.sh" || { echo "a resposta do xrdp não é salva nas escolhas"; return 1; }
+  grep -q '\$modo == desktop && \$(lvl9_xrdp) == sim' "$raiz/bin/lvl9" || { echo "o doctor cobra o xrdp de quem não escolheu"; return 1; }
+}
+confere "o instalador pergunta, salva, e o doctor só cobra de quem escolheu" xrdp_pergunta
+
+echo "== lvl9 update não é uma reinstalação =="
+update_enxuto() {
+  grep -q 'LVL9_ATUALIZA=1 exec bash "$CLONE/install.sh"' "$raiz/bin/lvl9" || { echo "o lvl9 update não liga o modo de atualização"; return 1; }
+  ! sed -n '/^cmd_update()/,/^}/p' "$raiz/bin/lvl9" | grep -nE 'ui_confirma|--[a-z]' | grep -v 'git \|--ff-only\|--oneline\|--abbrev-ref\|--tags\|--always' || { echo "o lvl9 update pergunta algo ou tem flag"; return 1; }
+  grep -q 'if (( atualiza )); then ui_secao "Atualizando"; else ui_secao "Instalando"; fi' "$raiz/install.sh" || { echo "a seção não muda de nome na atualização"; return 1; }
+  # as perguntas ficam todas dentro do "else" da atualização
+  awk '/^if \(\( atualiza \)\); then$/ {d=1} /^fi   # fim das perguntas/ {d=0} !d && /ui_(multipla|uma) |ui_confirma "(Instalar o Tailscale|Instalar Claude|Começar)/' "$raiz/install.sh" | grep . && { echo "pergunta fora do bloco pulado na atualização"; return 1; }
+  return 0
+}
+confere "update: usa as escolhas salvas, sem perguntas, e diz Atualizando" update_enxuto
 
 # ─── Sem terminal (Claude Code, CI) ─────────────────────────────────
 echo "== sem terminal =="

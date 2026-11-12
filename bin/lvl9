@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # lvl9 — comando do lvl9 depois de instalado (https://github.com/julianol1berato/lvl9)
-#   lvl9 update            busca a versão nova e reabre o instalador com as suas escolhas
+#   lvl9 update            busca a versão nova e aplica só o que mudou, com as suas escolhas
 #   lvl9 diff              o que mudou na máquina em relação ao lvl9
 #   lvl9 doctor            confere se está tudo instalado e funcionando
 #   lvl9 tema [nome]       mostra ou troca o tema do prompt
@@ -44,14 +44,14 @@ cmd_update() {
   ref=$(git -C "$CLONE" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || echo origin/main)
   novos=$(git -C "$CLONE" log --oneline "HEAD..$ref")
   if [[ -z $novos ]]; then
-    ui_ok "você já está na última versão ($(git -C "$CLONE" describe --tags --always))"
-    ui_confirma "Reaplicar a instalação mesmo assim?" nao || return 0
+    ui_ok "você já está na última versão ($(git -C "$CLONE" describe --tags --always)); conferindo a instalação"
   else
     ui_texto "novidades:"; printf '%s\n' "$novos" | sed 's/^/     /'
     printf '\n'
     git -C "$CLONE" merge -q --ff-only "$ref" || { ui_erro "o clone tem mudanças locais; resolva em $CLONE"; return 1; }
   fi
-  exec bash "$CLONE/install.sh"
+  # atualização: as escolhas salvas, sem perguntas (para mudar uma, roda-se o install.sh)
+  LVL9_ATUALIZA=1 exec bash "$CLONE/install.sh"
 }
 
 # ─── diff ───────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ cmd_doctor() {
 
   ui_secao "Serviços"
   if tem_systemd; then
-    if [[ $modo == desktop ]]; then
+    if [[ $modo == desktop && $(lvl9_xrdp) == sim ]]; then
       if systemctl is-active -q xrdp; then ui_check ok "xrdp" "ativo"; else ui_check erro "xrdp" "parado"; (( problemas++ )); fi
     fi
     if grupo_ativo sysadmin; then

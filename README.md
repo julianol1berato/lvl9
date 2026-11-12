@@ -25,8 +25,8 @@ O **lvl9** pega um Debian ou Ubuntu recém-instalado, desktop com XFCE ou servid
 gráfica, e deixa a máquina pronta para trabalhar, no estilo do [Omarchy](https://github.com/basecamp/omarchy)
 e do setup do [Fábio Akita](https://github.com/akitaonrails). Você ganha um prompt powerline com git,
 IP e relógio, a CLI moderna escrita em Rust e Go, o vim com o tema halcyon, tmux e, se quiser,
-Claude Code com statusbar e herdr. No desktop vêm também Nerd Fonts, flameshot no PrintScreen e
-xrdp redondo.
+Claude Code com statusbar e herdr. No desktop vêm também Nerd Fonts, flameshot no PrintScreen e,
+se você quiser, xrdp redondo.
 
 São uma linha no terminal e uma tela de instalação. **Sem flags e sem nada para decorar.**
 
@@ -42,7 +42,7 @@ quando quiser: cada passo só mexe no que mudou e guarda backup do que substitui
 
 **O lvl9 respeita o host.** Numa máquina sem interface gráfica ele entra no **modo servidor** e não
 instala nada gráfico: nem XFCE, nem xrdp, nem fontes. Onde o XFCE já está instalado, ele configura
-também o XFCE e o xrdp.
+também o XFCE e, se você escolher, o xrdp.
 
 **A parte gráfica é só para XFCE.** Terminal, atalhos, fontes e xrdp são feitos e testados apenas
 no XFCE. Se a máquina usa outra interface (GNOME, KDE…), o lvl9 instala a parte de terminal e as
@@ -172,19 +172,22 @@ Marque **Claude Code** na instalação e ele vem completo, no seu usuário e no 
 | **Shell** | bash no estilo do Akita, prompt com 5 temas, aliases em inglês e pt-BR, `Alt+H`, fastfetch e dica ao abrir |
 | **Editor e terminal** | vim halcyon · tmux Tokyo Night (prefixo `Ctrl+a`) |
 | **Desktop** ¹ | XFCE · xfce4-terminal com Nerd Font e Tokyo Night · JetBrainsMono e CaskaydiaMono Nerd Font · flameshot em `Print` e `Super+Shift+S` |
-| **xrdp** ¹ | sessão XFCE · som pelo RDP · sem o pedido de senha do colord a cada login |
+| **xrdp** ² | sessão XFCE · som pelo RDP · sem o pedido de senha do colord a cada login |
 | **Sistema** | fuso America/Sao_Paulo com NTP · locale pt_BR.UTF-8 |
 | **Opcional** | Tailscale · Claude Code + statusbar-claude + herdr |
 
 ¹ Só no modo desktop, que é o do XFCE. As Nerd Fonts vão também para máquinas com outra interface
 gráfica (GNOME, KDE…). Num servidor nada disso é instalado.
 
+² Opcional, e só no modo desktop: o xrdp abre a área de trabalho na rede (porta 3389), então o
+instalador pergunta antes e o padrão é não.
+
 Os grupos **Dev**, **Sysadmin** e **Rede** vêm marcados. Desmarque na tela o que não quiser.
 
 ## 🩺 Depois de instalado
 
 ```
-lvl9 update      busca a versão nova e reaplica, com as suas escolhas de antes
+lvl9 update      busca a versão nova e aplica só o que mudou, com as suas escolhas de antes
 lvl9 diff        mostra o que mudou na máquina em relação ao lvl9
 lvl9 doctor      confere cada ferramenta contra a versão fixada e a saúde do sistema
 lvl9 tema        mostra ou troca o tema do prompt
@@ -220,6 +223,16 @@ lvl9 dicas on|off · lvl9 fastfetch on|off · lvl9 avisos on|off
   `~/.local/state/lvl9/backups/<data>/`. Os arquivos do root vão para `/root/.local/state/lvl9/backups/`.
 - **O seu `~/.bashrc` é seu.** Ele só carrega `/usr/local/share/lvl9/bash/rc`. O `lvl9 update`
   atualiza o rc e não mexe mais no seu `~/.bashrc`. Segredos ficam em `~/.bashrc.local`.
+- **Atualizar não é reinstalar.** O `lvl9 update` mantém o que você escolheu na instalação: não
+  pergunta nada e não instala o que não estava escolhido. Cada passo diz quantas mudanças fez de
+  verdade (arquivo novo ou diferente, pacote que faltava, serviço que não estava ativo). O apt só é
+  chamado quando falta pacote, e um repositório fora do ar vira aviso em vez de derrubar o passo.
+  No fim, a lista do que mudou; sem novidades, "nada mudou nesta máquina". Para mudar uma escolha,
+  rode o instalador de novo: `bash ~/.local/share/lvl9/install.sh`.
+- **xrdp só para quem pediu.** Ele abre a área de trabalho na rede, então é uma pergunta da
+  instalação, com padrão não. Quem instalou uma versão anterior, que ligava o xrdp sempre, não é
+  surpreendido: a atualização mantém o xrdp se o serviço está habilitado e o deixa de fora se você
+  o desabilitou (`sudo systemctl disable --now xrdp`).
 - **Avisa, não conserta.** O terminal detecta (uma linha, só com problema), o `lvl9 doctor` explica
   (serviços com falha, crashes, firmware, reinício) e para por aí: o lvl9 não repara o host, não
   roda em segundo plano e não manda notificação. No doctor, esses itens são avisos e não contam
@@ -296,8 +309,8 @@ que você copia vai para a área de transferência do seu computador pelo própr
 mesmo por SSH.
 <br><br>
 O modo fica salvo e vale para o <code>lvl9 update</code>. Para escolher na mão, use
-<code>LVL9_MODO</code>: <code>curl -fsSL …/boot.sh | LVL9_MODO=desktop bash</code> instala XFCE e
-xrdp num servidor, e <code>LVL9_MODO=servidor</code> faz o contrário.
+<code>LVL9_MODO</code>: <code>curl -fsSL …/boot.sh | LVL9_MODO=desktop bash</code> instala o XFCE
+(e o xrdp, com <code>LVL9_XRDP=sim</code>) num servidor, e <code>LVL9_MODO=servidor</code> faz o contrário.
 </details>
 
 <details>

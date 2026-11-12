@@ -104,11 +104,14 @@ ui_caixa() {
 }
 
 # ─── Passos ─────────────────────────────────────────────────────────
-# ui_passo "Título" arquivo_do_passo → roda o passo com spinner; a saída vai para o log
+# ui_passo "Título" arquivo_do_passo → roda o passo com spinner; a saída vai para o log.
+# Mostra quantas mudanças o passo fez de verdade (mudou, em lib/comum.sh) e os avisos dele.
 PASSOS_RESULTADO=()
 ui_passo() {
-  local titulo=$1 arquivo=$2 ini fim seg estado=0 pontos
+  local titulo=$1 arquivo=$2 ini fim seg estado=0 pontos antes log_antes n feito
   ini=$SECONDS
+  antes=$(wc -l < "$LVL9_MUDANCAS" 2>/dev/null || echo 0)
+  log_antes=$(wc -c < "$LVL9_LOG" 2>/dev/null || echo 0)
   printf '\n=== %s (%s) ===\n' "$titulo" "$arquivo" >> "$LVL9_LOG"
   local cmd=(bash -c 'source "$LVL9_REPO/lib/comum.sh"; source "$LVL9_REPO/install/$1"; set -e; executa' _ "$arquivo")
   if auto || ! tem gum; then
@@ -119,7 +122,13 @@ ui_passo() {
   fim=$SECONDS seg=$(( fim - ini ))
   printf -v pontos '%*s' $(( 44 - ${#titulo} )) ''
   if (( estado == 0 )); then
-    printf '   %s✔%s %s %s%s %ss%s\n' "$(cor "$C_VERDE")" "$RST" "$titulo" "$(cor "$C_CINZA")" "${pontos// /.}" "$seg" "$RST"
+    n=$(( $(wc -l < "$LVL9_MUDANCAS" 2>/dev/null || echo 0) - antes ))
+    if (( n == 0 )); then feito="sem mudanças"; elif (( n == 1 )); then feito="1 mudança"; else feito="$n mudanças"; fi
+    printf '   %s✔%s %s %s%s %s · %ss%s\n' "$(cor "$C_VERDE")" "$RST" "$titulo" "$(cor "$C_CINZA")" "${pontos// /.}" "$feito" "$seg" "$RST"
+    # avisos do passo (linhas "  ! ..." que ele escreveu no log): não derrubam o passo, mas aparecem
+    tail -c "+$(( log_antes + 1 ))" "$LVL9_LOG" 2>/dev/null | grep '^  ! ' | sed 's/^  ! //' | while IFS= read -r n; do
+      printf '       %s!%s %s\n' "$(cor "$C_AMARELO")" "$RST" "$n"
+    done
     PASSOS_RESULTADO+=("ok|$titulo|$seg")
     return 0
   fi

@@ -11,6 +11,7 @@ LVL9_ESTADO="$HOME/.local/state/lvl9"         # logs, backups e lista de arquivo
 LVL9_CARIMBO=${LVL9_CARIMBO:-$(date +%Y%m%d-%H%M%S)}
 LVL9_LOG=${LVL9_LOG:-$LVL9_ESTADO/install-$LVL9_CARIMBO.log}
 LVL9_LOCK="$LVL9_REPO/versions.lock"
+LVL9_MUDANCAS="$LVL9_ESTADO/mudancas"         # o que esta rodada mudou de verdade na máquina
 export LVL9_REPO LVL9_CARIMBO LVL9_LOG
 
 # ─── Sistema ────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ tem_xfce() {
 # ser que a pessoa aceite o XFCE ao lado (tela de escolhas) ou peça com LVL9_MODO=desktop.
 outra_interface() { tem_interface_grafica && ! tem_xfce; }
 
-# Modo da instalação: desktop (XFCE, xrdp, flameshot) ou servidor (nada de XFCE nem xrdp).
+# Modo da instalação: desktop (XFCE, flameshot e, se escolhido, xrdp) ou servidor (nada disso).
 # Vale o LVL9_MODO do ambiente; senão o da última instalação; senão o que a máquina já tem:
 # desktop só onde o XFCE já está instalado. O lvl9 nunca coloca interface gráfica numa máquina
 # que não tinha uma, nem o XFCE ao lado de outra interface sem a pessoa pedir.
@@ -75,6 +76,16 @@ lvl9_modo() {
   elif tem_xfce; then echo desktop
   else echo servidor; fi
 }
+# xrdp é uma escolha de quem instala: ele abre a área de trabalho na rede (porta 3389), então o
+# lvl9 não o liga por conta própria. Vale o LVL9_XRDP (do ambiente ou das escolhas salvas); as
+# escolhas de versões anteriores não têm essa resposta, e aí vale o que a máquina já faz hoje:
+# sim se o serviço está habilitado, não se não está (ou se foi desabilitado).
+lvl9_xrdp() {
+  if [[ ${LVL9_XRDP:-} == sim || ${LVL9_XRDP:-} == nao ]]; then echo "$LVL9_XRDP"
+  elif systemctl is-enabled -q xrdp 2>/dev/null; then echo sim
+  else echo nao; fi
+}
+
 # Nerd Fonts: no modo desktop e em toda máquina que já tem interface gráfica
 quer_fontes() { [[ $(lvl9_modo) == desktop ]] || tem_interface_grafica; }
 
@@ -86,7 +97,7 @@ modo_desktop() { [[ $(lvl9_modo) == desktop ]]; }
 
 # Passos da instalação para as escolhas atuais (LVL9_MODO, LVL9_GRUPOS, LVL9_TAILSCALE,
 # LVL9_CLAUDE), um "título|arquivo em install/" por linha, na ordem em que rodam.
-# XFCE e xrdp só no modo desktop. As Nerd Fonts vão para qualquer máquina com interface gráfica
+# XFCE só no modo desktop, e o xrdp só se foi escolhido (LVL9_XRDP=sim). As Nerd Fonts vão para qualquer máquina com interface gráfica
 # (também GNOME, KDE...): sem elas o prompt não aparece direito, e fonte não muda o desktop de
 # ninguém. Num servidor nada disso: quem desenha é o terminal do cliente.
 lvl9_passos() {
@@ -100,7 +111,8 @@ lvl9_passos() {
   echo "tmux|55-tmux.sh"
   grupo_ativo dev && echo "Git com delta|60-git.sh"
   grupo_ativo sysadmin && echo "Docker Engine|70-docker.sh"
-  (( desktop )) && printf '%s\n' "XFCE, terminal e flameshot|80-desktop.sh" "xrdp|85-xrdp.sh"
+  (( desktop )) && echo "XFCE, terminal e flameshot|80-desktop.sh"
+  (( desktop )) && [[ ${LVL9_XRDP:-nao} == sim ]] && echo "xrdp|85-xrdp.sh"
   [[ ${LVL9_TAILSCALE:-nao} == sim ]] && echo "Tailscale|90-tailscale.sh"
   [[ ${LVL9_CLAUDE:-nao} == sim ]] && echo "Claude Code + statusbar + herdr|95-claude.sh"
   return 0
@@ -116,18 +128,66 @@ falha() { printf '  ✘ %s\n' "$*" >&2; return 1; }
 # uma vez no início e mantida viva pelo install.sh).
 como_root() { sudo -n "$@"; }
 
+# mudou "o que mudou" → registra uma mudança de verdade na máquina. O instalador conta por passo
+# e lista no resumo: rodar de novo sem nada novo tem de terminar com zero mudanças.
+mudou() { mkdir -p "$LVL9_ESTADO"; printf '%s\n' "$*" >> "$LVL9_MUDANCAS"; }
+
+# apt_falta pacote... → os que ainda não estão instalados, um por linha
+apt_falta() {
+  local p
+  for p in "$@"; do
+    [[ $(dpkg-query -W -f='${db:Status-Status}' "$p" 2>/dev/null) == installed ]] || echo "$p"
+  done
+}
+
+# Índices do apt: uma vez por rodada, e só quando há pacote para instalar. Um repositório fora
+# do ar ou um download corrompido vira aviso: os índices antigos costumam bastar, e se não
+# bastarem é a instalação do pacote que falha, com o erro certo.
+apt_indices() {
+  [[ $(cat "$LVL9_ESTADO/apt-indices" 2>/dev/null) == "$LVL9_CARIMBO" ]] && return 0
+  mkdir -p "$LVL9_ESTADO"; echo "$LVL9_CARIMBO" > "$LVL9_ESTADO/apt-indices"
+  como_root apt-get update -q -o DPkg::Lock::Timeout=300 \
+    || aviso "apt-get update falhou em algum repositório; seguindo com os índices que já existem"
+}
+
+# Instala o que falta. Com tudo já instalado não chama o apt: não usa a rede, não atualiza
+# pacote de ninguém e não parece uma reinstalação.
 apt_instala() {
+  local faltam
+  mapfile -t faltam < <(apt_falta "$@")
+  (( ${#faltam[@]} )) || return 0
+  apt_indices
   como_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
-    -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confold "$@"
+    -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confold "${faltam[@]}"
+  mudou "pacotes instalados: ${faltam[*]}"
 }
 
 # Instala só os pacotes que existem nesta distro/versão (os nomes mudam entre Debian e Ubuntu)
 apt_instala_existentes() {
-  local p ok=()
-  for p in "$@"; do
+  local p ok=() faltam
+  mapfile -t faltam < <(apt_falta "$@")
+  (( ${#faltam[@]} )) || return 0
+  apt_indices
+  for p in "${faltam[@]}"; do
     apt-cache show "$p" &>/dev/null && ok+=("$p") || aviso "pacote $p não existe em $OS_NOME; pulando"
   done
   if (( ${#ok[@]} )); then apt_instala "${ok[@]}"; fi
+}
+
+# servico_ativa unidade → habilita e inicia, se ainda não estiver assim
+servico_ativa() {
+  if systemctl is-enabled -q "$1" 2>/dev/null && systemctl is-active -q "$1"; then
+    info "$1 já está ativo"; return 0
+  fi
+  como_root systemctl enable --now "$1"
+  mudou "serviço ativado: $1"
+}
+
+# grupo_poe usuário grupo → coloca no grupo, se ainda não estiver
+grupo_poe() {
+  if id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx "$2"; then info "$1 já está no grupo $2"; return 0; fi
+  como_root usermod -aG "$2" "$1"
+  mudou "$1 entrou no grupo $2"
 }
 
 # ─── versions.lock ──────────────────────────────────────────────────
@@ -194,6 +254,7 @@ instala_bin() {
   done
   rm -rf "$tmp"
   info "$nome $LOCK_VERSAO"
+  mudou "$nome $LOCK_VERSAO"
 }
 
 # Versão do lock já instalada? (marcador gravado em /usr/local/share/lvl9/versoes)
@@ -236,15 +297,16 @@ faz_backup() {
 # copia origem destino [modo] → copia com backup do que existia (se diferente) e registra
 # no arquivos.tsv para o "lvl9 diff". A origem é relativa ao repositório ou absoluta.
 copia() {
-  local src=$1 dst=$2 modo=${3:-644} r=()
+  local src=$1 dst=$2 modo=${3:-644} r=() como=novo
   [[ $src == /* ]] || src="$LVL9_REPO/$src"
   e_do_sistema "$dst" && r=(sudo -n)
   if "${r[@]}" test -e "$dst"; then
     if "${r[@]}" cmp -s "$src" "$dst"; then registra "$src" "$dst"; return 0; fi
-    faz_backup "$dst"
+    faz_backup "$dst"; como=atualizado
   fi
   "${r[@]}" install -D -m "$modo" "$src" "$dst"
   registra "$src" "$dst"
+  mudou "${dst/#"$HOME"/\~} ($como)"
 }
 
 registra() {

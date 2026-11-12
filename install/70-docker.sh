@@ -15,7 +15,8 @@ executa() {
     rm -rf "$tmp"
     printf 'Types: deb\nURIs: https://download.docker.com/linux/%s\nSuites: %s\nComponents: stable\nSigned-By: /etc/apt/keyrings/docker.asc\n' \
       "$OS_ID" "$OS_CODINOME" | como_root tee /etc/apt/sources.list.d/docker.sources >/dev/null
-    como_root apt-get update -q -o DPkg::Lock::Timeout=300
+    como_root apt-get update -q -o DPkg::Lock::Timeout=300   # repositório novo: aqui tem de dar certo
+    echo "$LVL9_CARIMBO" > "$LVL9_ESTADO/apt-indices"
     apt_instala docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   else
     # Versão nova demais para o repositório da Docker: usa o pacote da própria distro
@@ -25,7 +26,6 @@ executa() {
   fi
 
   # Grupo docker: dispensa o sudo (equivale a acesso root; vale a partir do próximo login)
-  como_root usermod -aG docker "$USER"
-  info "$USER adicionado ao grupo docker"
-  if tem_systemd; then como_root systemctl enable --now docker; fi
+  grupo_poe "$USER" docker
+  if tem_systemd; then servico_ativa docker; fi
 }

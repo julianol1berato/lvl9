@@ -17,11 +17,13 @@ executa() {
     else
       # no root é de propósito: o instalador oficial exige essa confirmação para rodar com sudo
       como_alvo "$alvo" env CLAUDE_INSTALL_ALLOW_SUDO=1 bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
+      mudou "$alvo: Claude Code instalado"
     fi
     if como_alvo "$alvo" test -x "$h/.local/bin/herdr"; then
       info "$alvo: herdr já instalado"
     else
       como_alvo "$alvo" sh -c 'curl -fsSL https://herdr.dev/install.sh | sh'
+      mudou "$alvo: herdr instalado"
     fi
     como_alvo "$alvo" "$h/.local/bin/herdr" integration install claude \
       || aviso "$alvo: integração herdr ↔ Claude não instalada (rode: herdr integration install claude)"

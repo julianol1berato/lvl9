@@ -49,12 +49,21 @@ confere "tmux.conf válido" tmux -f ~/.tmux.conf start-server \; kill-server
 
 if [[ $modo == desktop ]]; then
   echo "== desktop =="
-  confere "xrdp + xorgxrdp" dpkg -s xrdp xorgxrdp
+  if grep -qx 'LVL9_XRDP=sim' ~/.config/lvl9/escolhas; then
+    confere "xrdp escolhido: xrdp + xorgxrdp" dpkg -s xrdp xorgxrdp
+  else
+    confere "xrdp não escolhido: resposta salva" grep -qx 'LVL9_XRDP=nao' ~/.config/lvl9/escolhas
+    confere "xrdp não escolhido: nada dele instalado" bash -c 'for p in xrdp xorgxrdp; do
+      dpkg-query -W -f="\${db:Status-Status}" "$p" 2>/dev/null | grep -qx installed && { echo "instalado: $p"; exit 1; }; done
+      ! test -e ~/startwm.sh && ! sudo test -e /etc/polkit-1/rules.d/45-lvl9-colord.rules'
+  fi
   confere "flameshot" dpkg -s flameshot
   confere "XFCE" command -v xfce4-session
   confere "esquema Tokyo Night do terminal" test -f /usr/share/xfce4/terminal/colorschemes/lvl9-tokyo-night.theme
   confere "ajuste do XFCE agendado para o login" test -f ~/.config/autostart/lvl9-desktop.desktop
-  confere "regra polkit do colord" sudo test -f /etc/polkit-1/rules.d/45-lvl9-colord.rules
+  if grep -qx 'LVL9_XRDP=sim' ~/.config/lvl9/escolhas; then
+    confere "regra polkit do colord" sudo test -f /etc/polkit-1/rules.d/45-lvl9-colord.rules
+  fi
   confere "ajuste do firmware-notifier só onde o snap existe" bash -c 'u=/etc/systemd/user/snap.firmware-updater.firmware-notifier.service
     if [[ -e $u ]]; then test -f "$u.d/10-lvl9-notificacoes.conf"; else ! test -e "$u.d"; fi'
 elif tem_interface_grafica; then
@@ -96,6 +105,17 @@ confere "lvl9 versao" lvl9 versao
 confere "lvl9 diff" lvl9 diff
 # sem systemd no container a seção de serviços é pulada; o resto precisa estar 100%
 confere "lvl9 doctor sem problemas" lvl9 doctor
+
+echo "== atualizar sem nada novo não muda nada =="
+cp ~/.config/lvl9/escolhas /tmp/escolhas-antes
+LVL9_ATUALIZA=1 bash ~/.local/share/lvl9/install.sh > /tmp/atualiza.txt 2>&1; atualizou=$?
+sed -i 's/\x1b\[[0-9;?]*[a-zA-Z]//g' /tmp/atualiza.txt
+confere "segunda rodada termina sem erro" test "$atualizou" = 0
+confere "diz Atualizando, não Instalando" bash -c 'grep -q "Atualizando" /tmp/atualiza.txt && ! grep -qE "Instalando|Pronto para instalar" /tmp/atualiza.txt'
+confere "não refaz as perguntas" bash -c 'grep -q "Suas escolhas" /tmp/atualiza.txt && ! grep -qE "Componentes|Opcionais" /tmp/atualiza.txt'
+confere "as escolhas continuam as mesmas" cmp -s /tmp/escolhas-antes ~/.config/lvl9/escolhas
+confere "nenhuma mudança na máquina" bash -c 'if [[ -s ~/.local/state/lvl9/mudancas ]]; then cat ~/.local/state/lvl9/mudancas; exit 1; fi; grep -q "nada mudou nesta máquina" /tmp/atualiza.txt'
+confere "todos os passos: sem mudanças" bash -c '! grep -E "✔ .* [0-9]+ mudanças? ·" /tmp/atualiza.txt'
 
 echo "== cada comando num terminal interativo =="
 bash ~/.local/share/lvl9/tests/comandos.sh || (( erro++ ))

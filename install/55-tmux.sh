@@ -7,5 +7,5 @@ executa() {
   for alvo in usuario root; do
     copia config/tmux.conf "$(home_de "$alvo")/.tmux.conf"
   done
-  info "tmux.conf instalado (prefixo Ctrl+a)"
+  info "tmux.conf conferido (prefixo Ctrl+a)"
 }

@@ -17,6 +17,11 @@ if ! auto && [[ ! -t 0 ]] && { true </dev/tty; } 2>/dev/null; then exec </dev/tt
 
 mkdir -p "$LVL9_ESTADO" "$LVL9_CONFIG"
 : > "$LVL9_LOG"
+: > "$LVL9_MUDANCAS"
+# Atualização (lvl9 update): vale o que já foi escolhido. Não pergunta nada, não instala o que
+# não estava escolhido e não fala em instalar. Para mudar uma escolha, roda-se o instalador.
+atualiza=0
+[[ ${LVL9_ATUALIZA:-} == 1 && -f $LVL9_CONFIG/escolhas ]] && atualiza=1
 ln -sfn "$LVL9_LOG" "$LVL9_ESTADO/install.log"
 
 # ─── 1. Verificações ────────────────────────────────────────────────
@@ -92,14 +97,18 @@ fi
 # ─── 2. Escolhas ────────────────────────────────────────────────────
 # Padrões: o que foi escolhido da última vez (ou tudo marcado, na primeira)
 LVL9_GRUPOS="base dev sysadmin rede" LVL9_TEMA=tokyo-night LVL9_TAILSCALE=nao LVL9_CLAUDE=sim
-modo=$LVL9_MODO
+modo=$LVL9_MODO xrdp_pedido=${LVL9_XRDP:-}
 # shellcheck disable=SC1091
 [[ -f $LVL9_CONFIG/escolhas ]] && source "$LVL9_CONFIG/escolhas"
 LVL9_MODO=$modo   # já decidido nas verificações (o LVL9_MODO do ambiente vale mais que o salvo)
+# xrdp: o do ambiente vale mais que o salvo; sem nenhum dos dois, o que a máquina já faz
+[[ -n $xrdp_pedido ]] && LVL9_XRDP=$xrdp_pedido
+LVL9_XRDP=$(lvl9_xrdp)
+[[ $LVL9_MODO == desktop ]] || LVL9_XRDP=nao
 
 # Outra interface gráfica: o XFCE só é instalado com um "sim" de quem está na frente da tela.
 # Sem terminal (automação) não se pergunta nem se instala: para isso existe o LVL9_MODO=desktop.
-if (( pergunta_xfce )); then
+if (( pergunta_xfce && ! atualiza )); then
   ui_secao "Interface gráfica"
   ui_texto "Esta máquina usa outra interface gráfica e não tem o XFCE."
   ui_texto "A parte gráfica do lvl9 (xfce4-terminal, atalhos, xrdp) é feita e testada só no XFCE."
@@ -113,87 +122,106 @@ if (( pergunta_xfce )); then
   export LVL9_MODO
 fi
 
-ui_secao "Componentes"
-ui_texto "Sempre instalados: starship · eza · bat · fd · rg · fzf · zoxide · jq · fastfetch · btop"
-if [[ $LVL9_MODO == desktop ]]; then
-  ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · XFCE · xrdp · flameshot"
-elif quer_fontes; then
-  ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · sem XFCE nem xrdp"
+if (( atualiza )); then
+  sim_nao() { if [[ $1 == sim ]]; then echo sim; else echo não; fi; }
+  ui_secao "Suas escolhas"
+  ui_texto "modo $LVL9_MODO · grupos $LVL9_GRUPOS · prompt $LVL9_TEMA"
+  if [[ $LVL9_MODO == desktop ]]; then
+    ui_texto "xrdp $(sim_nao "$LVL9_XRDP") · tailscale $(sim_nao "$LVL9_TAILSCALE") · claude $(sim_nao "$LVL9_CLAUDE")"
+  else
+    ui_texto "tailscale $(sim_nao "$LVL9_TAILSCALE") · claude $(sim_nao "$LVL9_CLAUDE")"
+  fi
+  ui_texto "a atualização mantém essas escolhas; para mudar, rode o instalador: bash ~/.local/share/lvl9/install.sh"
 else
-  ui_texto "gum · mise + Node · gh · vim halcyon · tmux · sem nada gráfico (modo servidor)"
-fi
-printf '\n'
-sel=()
-for g in dev sysadmin rede; do grupo_ativo "$g" && sel+=("$g"); done
-declare -A ROTULO=(
-  [dev]="Dev        delta · lazygit · tldr · yq"
-  [sysadmin]="Sysadmin   Docker · lazydocker · dust · duf · procs"
-  [rede]="Rede       nmap · doggo · gping · trippy · bandwhich · tcpdump"
-)
-sel_rot=(); for g in "${sel[@]}"; do sel_rot+=("${ROTULO[$g]}"); done
-escolhidos=$(IFS=,; ui_multipla "Grupos extras (x marca/desmarca · enter confirma)" "${sel_rot[*]}" \
-  "${ROTULO[dev]}:dev" "${ROTULO[sysadmin]}:sysadmin" "${ROTULO[rede]}:rede") || exit 130
-LVL9_GRUPOS="base $(echo $escolhidos)"
-for g in dev sysadmin rede; do
-  if grupo_ativo "$g"; then ui_ok "${ROTULO[$g]}"; else ui_texto "  ${ROTULO[$g]%% *} (não)"; fi
-done
+  ui_secao "Componentes"
+  ui_texto "Sempre instalados: starship · eza · bat · fd · rg · fzf · zoxide · jq · fastfetch · btop"
+  if [[ $LVL9_MODO == desktop ]]; then
+    ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · XFCE · flameshot"
+  elif quer_fontes; then
+    ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · sem XFCE nem xrdp"
+  else
+    ui_texto "gum · mise + Node · gh · vim halcyon · tmux · sem nada gráfico (modo servidor)"
+  fi
+  printf '\n'
+  sel=()
+  for g in dev sysadmin rede; do grupo_ativo "$g" && sel+=("$g"); done
+  declare -A ROTULO=(
+    [dev]="Dev        delta · lazygit · tldr · yq"
+    [sysadmin]="Sysadmin   Docker · lazydocker · dust · duf · procs"
+    [rede]="Rede       nmap · doggo · gping · trippy · bandwhich · tcpdump"
+  )
+  sel_rot=(); for g in "${sel[@]}"; do sel_rot+=("${ROTULO[$g]}"); done
+  escolhidos=$(IFS=,; ui_multipla "Grupos extras (x marca/desmarca · enter confirma)" "${sel_rot[*]}" \
+    "${ROTULO[dev]}:dev" "${ROTULO[sysadmin]}:sysadmin" "${ROTULO[rede]}:rede") || exit 130
+  LVL9_GRUPOS="base $(echo $escolhidos)"
+  for g in dev sysadmin rede; do
+    if grupo_ativo "$g"; then ui_ok "${ROTULO[$g]}"; else ui_texto "  ${ROTULO[$g]%% *} (não)"; fi
+  done
 
-ui_secao "Prompt"
-declare -A TEMAS=(
-  [tokyo-night]="tokyo-night   powerline Tokyo Night, 2 linhas, IP e relógio à direita"
-  [gruvbox]="gruvbox       powerline com cantos arredondados, cores quentes"
-  [parrot]="parrot        estilo ParrotOS  ┌─[user]─[~/pasta] … [hora]  └──╼ \$"
-  [bash-parrot]="bash-parrot   estilo ParrotOS em bash puro (sem starship)"
-  [omarchy]="omarchy       minimalista do Akita, 1 linha"
-)
-LVL9_TEMA=$(ui_uma "Tema do prompt (troca depois com: lvl9 tema)" "${TEMAS[$LVL9_TEMA]:-${TEMAS[tokyo-night]}}" \
-  "${TEMAS[tokyo-night]}:tokyo-night" "${TEMAS[gruvbox]}:gruvbox" "${TEMAS[parrot]}:parrot" \
-  "${TEMAS[bash-parrot]}:bash-parrot" "${TEMAS[omarchy]}:omarchy") || exit 130
-[[ -n $LVL9_TEMA ]] || LVL9_TEMA=tokyo-night
-ui_ok "${TEMAS[$LVL9_TEMA]}"
+  ui_secao "Prompt"
+  declare -A TEMAS=(
+    [tokyo-night]="tokyo-night   powerline Tokyo Night, 2 linhas, IP e relógio à direita"
+    [gruvbox]="gruvbox       powerline com cantos arredondados, cores quentes"
+    [parrot]="parrot        estilo ParrotOS  ┌─[user]─[~/pasta] … [hora]  └──╼ \$"
+    [bash-parrot]="bash-parrot   estilo ParrotOS em bash puro (sem starship)"
+    [omarchy]="omarchy       minimalista do Akita, 1 linha"
+  )
+  LVL9_TEMA=$(ui_uma "Tema do prompt (troca depois com: lvl9 tema)" "${TEMAS[$LVL9_TEMA]:-${TEMAS[tokyo-night]}}" \
+    "${TEMAS[tokyo-night]}:tokyo-night" "${TEMAS[gruvbox]}:gruvbox" "${TEMAS[parrot]}:parrot" \
+    "${TEMAS[bash-parrot]}:bash-parrot" "${TEMAS[omarchy]}:omarchy") || exit 130
+  [[ -n $LVL9_TEMA ]] || LVL9_TEMA=tokyo-night
+  ui_ok "${TEMAS[$LVL9_TEMA]}"
 
-ui_secao "Opcionais"
-padrao=nao; [[ $LVL9_TAILSCALE == sim ]] && padrao=sim
-if ui_confirma "Instalar o Tailscale (VPN mesh)?" "$padrao"; then LVL9_TAILSCALE=sim; ui_ok "Tailscale"; else LVL9_TAILSCALE=nao; ui_texto "  Tailscale (não)"; fi
-padrao=nao; [[ $LVL9_CLAUDE == sim ]] && padrao=sim
-if ui_confirma "Instalar Claude Code + statusbar-claude + herdr (usuário e root)?" "$padrao"; then
-  LVL9_CLAUDE=sim; ui_ok "Claude Code + statusbar-claude + herdr"
-else LVL9_CLAUDE=nao; ui_texto "  Claude Code (não)"; fi
+  ui_secao "Opcionais"
+  # xrdp: só no desktop, e só com um sim (LVL9_XRDP no ambiente já é a resposta)
+  if [[ $LVL9_MODO == desktop && -z $xrdp_pedido ]]; then
+    if ui_confirma "Instalar o xrdp (área de trabalho remota: abre a porta 3389 na rede)?" "$LVL9_XRDP"; then
+      LVL9_XRDP=sim; ui_ok "xrdp"
+    else LVL9_XRDP=nao; ui_texto "  xrdp (não)"; fi
+  fi
+  padrao=nao; [[ $LVL9_TAILSCALE == sim ]] && padrao=sim
+  if ui_confirma "Instalar o Tailscale (VPN mesh)?" "$padrao"; then LVL9_TAILSCALE=sim; ui_ok "Tailscale"; else LVL9_TAILSCALE=nao; ui_texto "  Tailscale (não)"; fi
+  padrao=nao; [[ $LVL9_CLAUDE == sim ]] && padrao=sim
+  if ui_confirma "Instalar Claude Code + statusbar-claude + herdr (usuário e root)?" "$padrao"; then
+    LVL9_CLAUDE=sim; ui_ok "Claude Code + statusbar-claude + herdr"
+  else LVL9_CLAUDE=nao; ui_texto "  Claude Code (não)"; fi
 
-# ─── 3. Confirmação ─────────────────────────────────────────────────
-sim_nao() { if [[ $1 == sim ]]; then echo sim; else echo não; fi; }
-printf '\n'
-ui_caixa "$(cor "$C_AZUL")${NEG}Pronto para instalar$RST" "" \
-  "modo       $LVL9_MODO" \
-  "grupos     $LVL9_GRUPOS" \
-  "prompt     $LVL9_TEMA" \
-  "tailscale  $(sim_nao "$LVL9_TAILSCALE")" \
-  "claude     $(sim_nao "$LVL9_CLAUDE")" \
-  "" \
-  "$(cor "$C_CINZA")usuário $USER e root · backups em ~/.local/state/lvl9/backups$RST"
-printf '\n'
-ui_confirma "Começar?" sim || { ui_texto "nada foi alterado."; exit 0; }
+  # ─── 3. Confirmação ─────────────────────────────────────────────────
+  sim_nao() { if [[ $1 == sim ]]; then echo sim; else echo não; fi; }
+  printf '\n'
+  ui_caixa "$(cor "$C_AZUL")${NEG}Pronto para instalar$RST" "" \
+    "modo       $LVL9_MODO" \
+    "grupos     $LVL9_GRUPOS" \
+    "prompt     $LVL9_TEMA" \
+    "xrdp       $(sim_nao "$LVL9_XRDP")" \
+    "tailscale  $(sim_nao "$LVL9_TAILSCALE")" \
+    "claude     $(sim_nao "$LVL9_CLAUDE")" \
+    "" \
+    "$(cor "$C_CINZA")usuário $USER e root · backups em ~/.local/state/lvl9/backups$RST"
+  printf '\n'
+  ui_confirma "Começar?" sim || { ui_texto "nada foi alterado."; exit 0; }
+fi   # fim das perguntas (puladas na atualização)
 
-printf 'LVL9_MODO=%s\nLVL9_GRUPOS="%s"\nLVL9_TEMA=%s\nLVL9_TAILSCALE=%s\nLVL9_CLAUDE=%s\n' \
-  "$LVL9_MODO" "$LVL9_GRUPOS" "$LVL9_TEMA" "$LVL9_TAILSCALE" "$LVL9_CLAUDE" > "$LVL9_CONFIG/escolhas"
-export LVL9_GRUPOS LVL9_TEMA LVL9_TAILSCALE LVL9_CLAUDE
+printf 'LVL9_MODO=%s\nLVL9_GRUPOS="%s"\nLVL9_TEMA=%s\nLVL9_XRDP=%s\nLVL9_TAILSCALE=%s\nLVL9_CLAUDE=%s\n' \
+  "$LVL9_MODO" "$LVL9_GRUPOS" "$LVL9_TEMA" "$LVL9_XRDP" "$LVL9_TAILSCALE" "$LVL9_CLAUDE" > "$LVL9_CONFIG/escolhas"
+export LVL9_GRUPOS LVL9_TEMA LVL9_XRDP LVL9_TAILSCALE LVL9_CLAUDE
 
 # ─── 4. Instalação ──────────────────────────────────────────────────
-ui_secao "Instalando"
+if (( atualiza )); then ui_secao "Atualizando"; else ui_secao "Instalando"; fi
 mapfile -t passos < <(lvl9_passos)
 
 falhas=0 inicio=$SECONDS
 for p in "${passos[@]}"; do
   if ! ui_passo "${p%%|*}" "${p#*|}"; then
     (( falhas++ ))
-    auto && continue
+    if auto || (( atualiza )); then continue; fi   # sem perguntas na atualização
     ui_confirma "Continuar com os próximos passos?" sim || break
   fi
 done
 total=$(( SECONDS - inicio ))
 
 # ─── 5. Tailscale: conectar agora? ──────────────────────────────────
-if [[ $LVL9_TAILSCALE == sim ]] && ! auto && tem tailscale && ! tailscale status &>/dev/null; then
+if [[ $LVL9_TAILSCALE == sim ]] && ! auto && (( ! atualiza )) && tem tailscale && ! tailscale status &>/dev/null; then
   printf '\n'
   if ui_confirma "Conectar o Tailscale agora? (abre um link de login)" sim; then
     sudo tailscale up || ui_aviso "não conectou; depois rode: sudo tailscale up"
@@ -202,6 +230,23 @@ fi
 
 # ─── 6. Resumo ──────────────────────────────────────────────────────
 printf '\n'
+mapfile -t mudancas < "$LVL9_MUDANCAS"
+if (( atualiza )); then
+  # Na atualização o que interessa é o que mudou nesta máquina (e só isso)
+  linhas=()
+  for m in "${mudancas[@]:0:12}"; do linhas+=("  › $m"); done
+  if (( ${#mudancas[@]} > 12 )); then linhas+=("  … e mais $(( ${#mudancas[@]} - 12 )) (lista completa: ~/.local/state/lvl9/mudancas)"); fi
+  if (( ${#mudancas[@]} == 0 )); then linhas=("  nada mudou nesta máquina: já estava tudo igual a esta versão"); fi
+  if (( ${#mudancas[@]} == 1 )); then quantas="1 mudança"; else quantas="${#mudancas[@]} mudanças"; fi
+  if (( falhas == 0 )); then titulo="$(cor "$C_VERDE")${NEG}✔ lvl9 $LVL9_VERSAO · $quantas em $(( total / 60 ))min $(( total % 60 ))s$RST"
+  else titulo="$(cor "$C_AMARELO")${NEG}! lvl9 $LVL9_VERSAO · $quantas · $falhas passo(s) com erro$RST"; fi
+  (( ${#mudancas[@]} )) && linhas+=("" "  abra um terminal novo para as mudanças valerem")
+  ui_caixa "$titulo" "" "${linhas[@]}" "" \
+    "$(cor "$C_CINZA")log:     ~/.local/state/lvl9/install.log$RST" \
+    "$(cor "$C_CINZA")backups: ~/.local/state/lvl9/backups/$LVL9_CARIMBO (root: /root/.local/state/lvl9/backups)$RST"
+  printf '\n'
+  exit $(( falhas > 0 ))
+fi
 proximos=("abra um terminal novo para ver o prompt, o fastfetch e a dica do dia")
 grupo_ativo sysadmin && proximos+=("faça logout/login para usar o docker sem sudo")
 [[ $LVL9_CLAUDE == sim ]] && proximos+=("rode claude para fazer login no Claude Code")

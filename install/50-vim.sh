@@ -1,6 +1,6 @@
 # Vim com o halcyon-vim (commit fixado), vim-plug e :FZF, no usuário e no root
 executa() {
-  local tmp alvo h
+  local tmp alvo h antes depois
   apt_instala vim git
   tmp=$(mktemp -d)
 
@@ -21,9 +21,12 @@ executa() {
     copia config/vim/lvl9-fzf.vim "$h/.vim/plugin/lvl9-fzf.vim"
     copia config/vim/lvl9-node.vim "$h/.vim/plugin/lvl9-node.vim"
     como_alvo "$alvo" rm -f "$h/.vim/plugin/fzf-debian.vim"   # versão anterior ao lvl9
+    antes=$(como_alvo "$alvo" ls "$h/.vim/plugged" 2>/dev/null | wc -l)
     como_alvo "$alvo" vim -E -s -u "$h/.vimrc" -i NONE -c 'PlugInstall --sync' -c 'qa!' </dev/null \
       || aviso "$alvo: PlugInstall terminou com aviso (rode :PlugInstall no vim se faltar algo)"
-    info "$alvo: $(como_alvo "$alvo" ls "$h/.vim/plugged" | wc -l) plugins"
+    depois=$(como_alvo "$alvo" ls "$h/.vim/plugged" | wc -l)
+    info "$alvo: $depois plugins"
+    (( antes == depois )) || mudou "$alvo: plugins do vim, de $antes para $depois"
   done
   rm -rf "$tmp"
 }

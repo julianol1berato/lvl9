@@ -42,4 +42,4 @@ info	bak <arquivo>	-	-	cópia de segurança com data e hora no nome
 info	fip <host> <porta>	-	ssh	túnel SSH: acessa localmente uma porta do servidor
 info	tm · t	-	tmux	sessão tmux "main" · reconecta ou cria a sessão Work
 info	cx	-	claude	limpa a tela e abre o Claude Code
-info	lvl9	-	lvl9	update · diff · doctor · tema · dicas on/off · fastfetch on/off
+info	lvl9	-	lvl9	update · diff · doctor · tema · dicas on/off · fastfetch on/off · avisos on/off

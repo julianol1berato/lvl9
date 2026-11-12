@@ -87,6 +87,15 @@ Duas linhas: à esquerda o que você está fazendo, à direita onde e quando.
 Um resumo do sistema com o fastfetch e uma dica de comando, diferente a cada terminal. Se cansar,
 desligue com `lvl9 fastfetch off` ou `lvl9 dicas off`.
 
+Se a máquina tiver um problema, aparece mais uma linha, e só nesse caso:
+
+```
+ ⚠  sistema: 2 serviços com falha · 1 relatório de crash · reinício pendente — lvl9 doctor mostra os detalhes
+```
+
+São três checagens instantâneas: unidades do systemd com falha, relatórios pendentes em
+`/var/crash` e pedido de reinício. Com tudo bem, não aparece nada. `lvl9 avisos off` desliga.
+
 <p align="center">
   <img src="docs/img/terminal.png" alt="fastfetch com sistema, CPU, memória, disco e IPs, mais a dica do dia" width="100%">
 </p>
@@ -170,9 +179,9 @@ Os grupos **Dev**, **Sysadmin** e **Rede** vêm marcados. Desmarque na tela o qu
 ```
 lvl9 update      busca a versão nova e reaplica, com as suas escolhas de antes
 lvl9 diff        mostra o que mudou na máquina em relação ao lvl9
-lvl9 doctor      confere cada ferramenta contra a versão fixada
+lvl9 doctor      confere cada ferramenta contra a versão fixada e a saúde do sistema
 lvl9 tema        mostra ou troca o tema do prompt
-lvl9 dicas on|off · lvl9 fastfetch on|off
+lvl9 dicas on|off · lvl9 fastfetch on|off · lvl9 avisos on|off
 ```
 
 <details>
@@ -204,6 +213,10 @@ lvl9 dicas on|off · lvl9 fastfetch on|off
   `~/.local/state/lvl9/backups/<data>/`. Os arquivos do root vão para `/root/.local/state/lvl9/backups/`.
 - **O seu `~/.bashrc` é seu.** Ele só carrega `/usr/local/share/lvl9/bash/rc`. O `lvl9 update`
   atualiza o rc e não mexe mais no seu `~/.bashrc`. Segredos ficam em `~/.bashrc.local`.
+- **Avisa, não conserta.** O terminal detecta (uma linha, só com problema), o `lvl9 doctor` explica
+  (serviços com falha, crashes, firmware, reinício) e para por aí: o lvl9 não repara o host, não
+  roda em segundo plano e não manda notificação. No doctor, esses itens são avisos e não contam
+  como problema da instalação.
 - **XFCE na hora certa.** Instalou de dentro da sessão gráfica? Fonte, cores e atalhos são
   aplicados na hora. Instalou por SSH? São aplicados sozinhos no próximo login.
 - **Testado.** A cada mudança, o GitHub roda o shellcheck e testes rápidos sem internet: detecção

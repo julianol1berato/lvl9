@@ -78,8 +78,11 @@ roda "prompt (starship ou bash-parrot)" "declare -F starship_precmd __prompt_par
 roda "lvl9 versao"                  "lvl9 versao"                "lvl9"
 roda "lvl9 dicas off/on"            "lvl9 dicas off && lvl9 dicas on" "dicas: on"
 roda "lvl9 fastfetch off/on"        "lvl9 fastfetch off && lvl9 fastfetch on" "fastfetch: on"
+roda "lvl9 avisos off/on"           "lvl9 avisos off && lvl9 avisos on" "avisos: on"
+roda "aviso de saúde não deixa funções no terminal" "__lvl9_avisos; ! declare -F saude_resumo"
 roda "lvl9 diff"                    "lvl9 diff"                  "iguais"
-roda "lvl9 doctor"                  "lvl9 doctor"                "tudo certo"
+# numa máquina de verdade pode haver aviso do sistema (reinício pendente...): não é problema do lvl9
+roda "lvl9 doctor"                  "lvl9 doctor"                "tudo certo|lvl9 em ordem"
 
 echo "RESULTADO COMANDOS: $ok ok, $erro erro(s)"
 exit $(( erro > 0 ))

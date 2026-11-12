@@ -25,7 +25,7 @@ lvl9() {   # lvl9 VAR=valor... -- [!] função args...
   local amb=()
   while [[ $1 != -- ]]; do amb+=("$1"); shift; done; shift
   env -i HOME="$tmp/home" PATH=/usr/bin:/bin "${amb[@]}" bash -c '
-    source "$0/lib/comum.sh" && source "$0/lib/ui.sh" || exit 99
+    source "$0/lib/comum.sh" && source "$0/lib/ui.sh" && source "$0/lib/saude.sh" || exit 99
     if [[ $1 == "!" ]]; then shift; ! "$@"; else "$@"; fi' "$raiz" "$@" </dev/null
 }
 mkdir -p "$tmp/home/.config/lvl9"
@@ -92,6 +92,75 @@ sem_grafico() {   # os passos de servidor não instalam pacote gráfico
   done
 }
 confere "nenhum passo de servidor instala pacote gráfico" sem_grafico
+
+# ─── Saúde do host ──────────────────────────────────────────────────
+echo "== saúde do host =="
+# systemctl falso: devolve o que estiver em $FALSO/sistema e $FALSO/usuario
+mkdir -p "$tmp/bin" "$tmp/falso"
+cat > "$tmp/bin/systemctl" <<'EOF'
+#!/bin/sh
+case " $* " in *" --user "*) cat "$FALSO/usuario" 2>/dev/null ;; *) cat "$FALSO/sistema" 2>/dev/null ;; esac
+EOF
+chmod +x "$tmp/bin/systemctl"
+com_falso=(PATH="$tmp/bin:/usr/bin:/bin" FALSO="$tmp/falso")
+saudavel=$(maquina saudavel usr/share/doc/leia-me); mkdir -p "$saudavel/run/systemd/system" "$saudavel/var/crash"
+doente=$(maquina doente var/crash/_usr_bin_wireplumber.105.crash var/crash/_usr_share_spotify_spotify.1000.crash \
+  var/crash/_usr_bin_x.1000.upload var/run/reboot-required); mkdir -p "$doente/run/systemd/system"
+um_crash=$(maquina umcrash var/crash/_usr_libexec_xfce4-screensaver_slideshow.1000.crash); mkdir -p "$um_crash/run/systemd/system"
+sem_systemd=$(maquina semsystemd var/run/reboot-required)
+
+: > "$tmp/falso/sistema"; : > "$tmp/falso/usuario"
+confere "máquina saudável: nenhuma linha" igual "" lvl9 "${com_falso[@]}" LVL9_RAIZ="$saudavel" -- saude_resumo
+confere "sem falhas: lista de serviços vazia" igual "" lvl9 "${com_falso[@]}" LVL9_RAIZ="$saudavel" -- saude_servicos
+confere "um relatório de crash, no singular" igual "1 relatório de crash" \
+  lvl9 "${com_falso[@]}" LVL9_RAIZ="$um_crash" -- saude_resumo
+confere "o programa sai do nome do relatório" igual "slideshow" lvl9 "${com_falso[@]}" LVL9_RAIZ="$um_crash" -- saude_crashes
+confere "só .crash conta (não .upload)" igual $'wireplumber\nspotify' lvl9 "${com_falso[@]}" LVL9_RAIZ="$doente" -- saude_crashes
+confere "reinício pendente aparece sozinho" igual "reinício pendente" lvl9 "${com_falso[@]}" LVL9_RAIZ="$sem_systemd" -- saude_resumo
+
+echo "fwupd-refresh.service loaded failed failed Refresh fwupd metadata" > "$tmp/falso/sistema"
+confere "um serviço com falha, no singular" igual "1 serviço com falha" \
+  lvl9 "${com_falso[@]}" LVL9_RAIZ="$saudavel" -- saude_resumo
+echo "snap.firmware-updater.firmware-notifier.service loaded failed failed Service for snap" > "$tmp/falso/usuario"
+confere "serviços do sistema e do usuário, pelo nome" igual \
+  $'fwupd-refresh.service\nsnap.firmware-updater.firmware-notifier.service' \
+  lvl9 "${com_falso[@]}" LVL9_RAIZ="$saudavel" -- saude_servicos
+confere "tudo junto, numa linha só" igual "2 serviços com falha · 2 relatórios de crash · reinício pendente" \
+  lvl9 "${com_falso[@]}" LVL9_RAIZ="$doente" -- saude_resumo
+confere "sem systemd (container), não consulta serviços" igual "reinício pendente" \
+  lvl9 "${com_falso[@]}" LVL9_RAIZ="$sem_systemd" -- saude_resumo
+mkdir -p "$tmp/sem-systemctl"   # um PATH com o básico, mas sem o systemctl
+for b in bash dirname id date tput; do [[ -x /usr/bin/$b ]] && ln -s "/usr/bin/$b" "$tmp/sem-systemctl/$b"; done
+confere "sem systemctl no PATH, não quebra" igual "" lvl9 PATH="$tmp/sem-systemctl" LVL9_RAIZ="$saudavel" -- saude_servicos
+
+# O aviso do terminal: aparece com problema, some sem problema e quando desligado
+aviso_rc() {   # aviso_rc raiz [avisos=off] → o que o rc mostraria ao abrir o terminal
+  local r=$1 pref=${2:-}
+  mkdir -p "$tmp/sis/lib" "$tmp/home/.config/lvl9"
+  cp "$raiz/lib/saude.sh" "$tmp/sis/lib/"
+  printf '%s\n' "$pref" > "$tmp/home/.config/lvl9/config"
+  env -i HOME="$tmp/home" "${com_falso[@]}" LVL9_RAIZ="$r" bash -c '
+    eval "$(sed -n "/^__lvl9_pref()/p; /^__lvl9_avisos()/,/^}/p" "$0/config/bash/rc")"
+    LVL9_SISTEMA=$1; __lvl9_pref avisos && __lvl9_avisos
+    declare -F saude_resumo >/dev/null && echo "VAZOU: função no terminal"; true' "$raiz" "$tmp/sis" \
+    | sed 's/\x1b\[[0-9;]*m//g'
+}
+confere "terminal: avisa quando há problema" igual \
+  " ⚠  sistema: 2 serviços com falha · 2 relatórios de crash · reinício pendente — lvl9 doctor mostra os detalhes" \
+  aviso_rc "$doente"
+: > "$tmp/falso/sistema"; : > "$tmp/falso/usuario"
+confere "terminal: silêncio quando está tudo bem" igual "" aviso_rc "$saudavel"
+confere "terminal: lvl9 avisos off desliga" igual "" aviso_rc "$doente" "avisos=off"
+rm -f "$tmp/home/.config/lvl9/config"
+
+# O ajuste do firmware-notifier é só para quem já tem o snap, e só no desktop
+so_com_snap() {
+  grep -q 'if \[\[ -e \$notificador \]\]' "$raiz/install/80-desktop.sh" || { echo "80-desktop.sh instala o ajuste sem testar o snap"; return 1; }
+  ! grep -rn 'snap install\|apt_instala.*snapd' "$raiz/install" || { echo "um passo instala snap"; return 1; }
+  ! grep -ln '10-lvl9-notificacoes' "$raiz"/install/*.sh | grep -v '80-desktop.sh' || { echo "ajuste fora do passo de desktop"; return 1; }
+}
+confere "ajuste do firmware-notifier: só com o snap e só no desktop" so_com_snap
+confere "ajuste do firmware-notifier: uma condição só, com busctl" bash -c '[[ $(grep -c "^ExecCondition=" "$1") == 1 ]] && grep -q "busctl --user call .* NameHasOwner s org.freedesktop.Notifications" "$1"' _ "$raiz/config/systemd/10-lvl9-notificacoes.conf"
 
 # ─── Sem terminal (Claude Code, CI) ─────────────────────────────────
 echo "== sem terminal =="

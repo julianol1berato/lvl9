@@ -11,6 +11,15 @@ executa() {
   # Esquema de cores também como preset em Preferências → Cores do xfce4-terminal
   copia config/xfce/lvl9-tokyo-night.theme /usr/share/xfce4/terminal/colorschemes/lvl9-tokyo-night.theme
 
+  # Só onde o snap firmware-updater já existe (Ubuntu desktop): o lvl9 não instala o snap,
+  # só evita que o notificador dele fique marcado como falha antes do login gráfico
+  local notificador=/etc/systemd/user/snap.firmware-updater.firmware-notifier.service
+  if [[ -e $notificador ]]; then
+    copia config/systemd/10-lvl9-notificacoes.conf "$notificador.d/10-lvl9-notificacoes.conf"
+    systemctl --user daemon-reload 2>/dev/null || true
+    info "firmware-notifier: não falha mais sem serviço de notificações"
+  fi
+
   if desktop_aplica; then
     rm -f "$HOME/.config/autostart/lvl9-desktop.desktop"
     info "aplicado na sessão XFCE atual"

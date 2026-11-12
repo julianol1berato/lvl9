@@ -8,6 +8,7 @@
 #   lvl9 ip                atualiza os IPs do prompt
 #   lvl9 dicas on|off      dica ao abrir o terminal
 #   lvl9 fastfetch on|off  resumo do sistema ao abrir o terminal
+#   lvl9 avisos on|off     aviso de problema no sistema ao abrir o terminal
 #   lvl9 versao            versão instalada
 set -uo pipefail
 
@@ -22,8 +23,10 @@ export LVL9_REPO
 source "$LVL9_REPO/lib/comum.sh"
 # shellcheck source=../lib/ui.sh
 source "$LVL9_REPO/lib/ui.sh"
+# shellcheck source=../lib/saude.sh
+source "$LVL9_REPO/lib/saude.sh"
 
-uso() { sed -n '2,11p' "$0" | sed 's/^# \{0,1\}/  /'; }
+uso() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}/  /'; }
 
 versao() { cat "$LVL9_SISTEMA/VERSAO" 2>/dev/null || echo "desconhecida"; }
 LVL9_VERSAO=$(versao)
@@ -79,7 +82,7 @@ cmd_diff() {
 
 # ─── doctor ─────────────────────────────────────────────────────────
 cmd_doctor() {
-  local nome grupo tipo problemas=0 escolhas="$HOME/.config/lvl9/escolhas" LVL9_GRUPOS="base dev sysadmin rede"
+  local nome grupo tipo problemas=0 avisos=0 escolhas="$HOME/.config/lvl9/escolhas" LVL9_GRUPOS="base dev sysadmin rede"
   # shellcheck disable=SC1090
   [[ -f $escolhas ]] && source "$escolhas"
   local modo; modo=$(lvl9_modo)
@@ -131,8 +134,33 @@ cmd_doctor() {
     if [[ -x $HOME/.local/bin/herdr ]]; then ui_check ok "herdr" "$("$HOME/.local/bin/herdr" --version 2>/dev/null | head -1)"
     else ui_check erro "herdr" "não instalado"; (( problemas++ )); fi
   fi
+
+  # Saúde do host: o lvl9 só avisa. Não entra em "problemas", que são os que o update conserta.
+  if tem_systemd; then
+    local lista n
+    ui_secao "Saúde do sistema"
+    lista=$(saude_servicos)
+    if [[ -z $lista ]]; then ui_check ok "Serviços com falha" "nenhum"
+    else ui_check aviso "Serviços com falha" "${lista//$'\n'/, } · systemctl --failed"; (( avisos++ )); fi
+    lista=$(saude_crashes); n=$(grep -c . <<< "$lista")
+    if [[ -z $lista ]]; then ui_check ok "Relatórios de crash" "nenhum"
+    else ui_check aviso "Relatórios de crash" "$n em /var/crash (${lista//$'\n'/, })"; (( avisos++ )); fi
+    # 0 = há atualização, 2 = nada a fazer; qualquer outro (VM, sem hardware suportado): sem linha
+    if tem fwupdmgr; then
+      timeout 10 fwupdmgr get-updates --no-unreported-check --no-metadata-check </dev/null &>/dev/null
+      case $? in
+        0) ui_check aviso "Firmware" "há atualização · fwupdmgr get-updates"; (( avisos++ )) ;;
+        2) ui_check ok "Firmware" "em dia" ;;
+      esac
+    fi
+    if saude_reinicio; then ui_check aviso "Reinício pendente" "sim"; (( avisos++ ))
+    else ui_check ok "Reinício pendente" "não"; fi
+  fi
+
   printf '\n'
-  if (( problemas == 0 )); then ui_ok "tudo certo"; else ui_aviso "$problemas problema(s) · lvl9 update reaplica a instalação"; fi
+  if (( problemas )); then ui_aviso "$problemas problema(s) · lvl9 update reaplica a instalação"
+  elif (( avisos )); then ui_aviso "lvl9 em ordem · $avisos aviso(s) do sistema acima, que o lvl9 não conserta"
+  else ui_ok "tudo certo"; fi
   (( problemas == 0 ))
 }
 
@@ -159,6 +187,7 @@ case ${1:-} in
   doctor|diagnostico) cmd_doctor ;;
   dicas)             cmd_pref dicas "${2:-}" ;;
   fastfetch)         cmd_pref fastfetch "${2:-}" ;;
+  avisos)            cmd_pref avisos "${2:-}" ;;
   desktop)           cmd_desktop ;;
   versao|version|--version|-v) echo "lvl9 $(versao)" ;;
   tema|ajuda|help|ip)

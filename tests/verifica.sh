@@ -55,6 +55,8 @@ if [[ $modo == desktop ]]; then
   confere "esquema Tokyo Night do terminal" test -f /usr/share/xfce4/terminal/colorschemes/lvl9-tokyo-night.theme
   confere "ajuste do XFCE agendado para o login" test -f ~/.config/autostart/lvl9-desktop.desktop
   confere "regra polkit do colord" sudo test -f /etc/polkit-1/rules.d/45-lvl9-colord.rules
+  confere "ajuste do firmware-notifier só onde o snap existe" bash -c 'u=/etc/systemd/user/snap.firmware-updater.firmware-notifier.service
+    if [[ -e $u ]]; then test -f "$u.d/10-lvl9-notificacoes.conf"; else ! test -e "$u.d"; fi'
 else
   echo "== servidor: nada gráfico =="
   confere "modo servidor salvo nas escolhas" grep -qx 'LVL9_MODO=servidor' ~/.config/lvl9/escolhas
@@ -75,6 +77,12 @@ confere "claude (root)" sudo test -x /root/.local/bin/claude
 confere "statusbar no settings.json (usuário)" jq -e '.statusLine.command | test("statusline")' ~/.claude/settings.json
 confere "statusbar no settings.json (root)" sudo jq -e '.statusLine.command | test("statusline")' /root/.claude/settings.json
 confere "herdr (usuário e root)" bash -c 'test -x ~/.local/bin/herdr && sudo test -x /root/.local/bin/herdr'
+
+echo "== saúde do host =="
+confere "lib/saude.sh instalada para todos" test -r /usr/local/share/lvl9/lib/saude.sh
+confere "avisos ligados por padrão" grep -qx 'avisos=on' ~/.config/lvl9/config
+confere "resumo roda sem erro (usuário)" bash -c 'source /usr/local/share/lvl9/lib/saude.sh && saude_resumo >/dev/null'
+confere "resumo roda sem erro (root)" sudo bash -c 'source /usr/local/share/lvl9/lib/saude.sh && saude_resumo >/dev/null'
 
 echo "== comando lvl9 =="
 confere "lvl9 versao" lvl9 versao

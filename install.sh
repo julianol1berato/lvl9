@@ -43,14 +43,22 @@ fi
 
 if [[ $ARCH == nao-suportada ]]; then ui_check erro "Arquitetura" "$(uname -m)"; exit 1; fi
 ui_check ok "Arquitetura" "$ARCH"
-# Modo: sem interface gráfica instalada, o lvl9 é de servidor e não instala nada gráfico
+# Modo: desktop só onde o XFCE já está instalado; senão é de servidor e nada gráfico é instalado.
+# Com outra interface (GNOME, KDE...), o XFCE só entra se a pessoa pedir: pergunta nas escolhas.
+pergunta_xfce=0
+if outra_interface && ! lvl9_modo_escolhido; then pergunta_xfce=1; fi
 LVL9_MODO=$(lvl9_modo)
 case $LVL9_MODO in
   servidor)
-    ui_check ok "Modo" "servidor (nada gráfico é instalado)" ;;
+    if outra_interface; then
+      ui_check ok "Modo" "terminal e Nerd Fonts (sem XFCE nem xrdp)"
+      ui_check aviso "Desktop" "outra interface, sem XFCE: a parte gráfica do lvl9 é só para XFCE"
+    else
+      ui_check ok "Modo" "servidor (nada gráfico é instalado)"
+    fi ;;
   desktop)
     ui_check ok "Modo" "desktop"
-    if tem xfce4-session; then ui_check ok "Desktop" "XFCE"; else ui_check aviso "Desktop" "XFCE não encontrado (será instalado)"; fi
+    if tem_xfce; then ui_check ok "Desktop" "XFCE"; else ui_check aviso "Desktop" "XFCE não encontrado (será instalado, a pedido)"; fi
     if [[ -n ${XRDP_SESSION:-} ]]; then ui_check ok "Sessão" "xrdp"
     elif [[ -n ${DISPLAY:-} ]]; then ui_check ok "Sessão" "gráfica local"
     else ui_check aviso "Sessão" "fora da sessão gráfica (ajustes do XFCE no próximo login)"; fi ;;
@@ -89,10 +97,28 @@ modo=$LVL9_MODO
 [[ -f $LVL9_CONFIG/escolhas ]] && source "$LVL9_CONFIG/escolhas"
 LVL9_MODO=$modo   # já decidido nas verificações (o LVL9_MODO do ambiente vale mais que o salvo)
 
+# Outra interface gráfica: o XFCE só é instalado com um "sim" de quem está na frente da tela.
+# Sem terminal (automação) não se pergunta nem se instala: para isso existe o LVL9_MODO=desktop.
+if (( pergunta_xfce )); then
+  ui_secao "Interface gráfica"
+  ui_texto "Esta máquina usa outra interface gráfica e não tem o XFCE."
+  ui_texto "A parte gráfica do lvl9 (xfce4-terminal, atalhos, xrdp) é feita e testada só no XFCE."
+  ui_texto "As Nerd Fonts são instaladas de qualquer forma, para o prompt aparecer direito."
+  printf '\n'
+  if ! auto && ui_confirma "Instalar o XFCE ao lado da interface atual? (ela não é removida)" nao; then
+    LVL9_MODO=desktop; ui_ok "XFCE será instalado"
+  else
+    ui_texto "  XFCE (não): terminal e Nerd Fonts. Para mudar depois: LVL9_MODO=desktop lvl9 update"
+  fi
+  export LVL9_MODO
+fi
+
 ui_secao "Componentes"
 ui_texto "Sempre instalados: starship · eza · bat · fd · rg · fzf · zoxide · jq · fastfetch · btop"
 if [[ $LVL9_MODO == desktop ]]; then
   ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · XFCE · xrdp · flameshot"
+elif quer_fontes; then
+  ui_texto "gum · mise + Node · gh · Nerd Fonts · vim halcyon · tmux · sem XFCE nem xrdp"
 else
   ui_texto "gum · mise + Node · gh · vim halcyon · tmux · sem nada gráfico (modo servidor)"
 fi

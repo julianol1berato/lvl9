@@ -41,8 +41,14 @@ Rode como **o seu usuário**, não como root. O lvl9 pede a senha do sudo uma ve
 quando quiser: cada passo só mexe no que mudou e guarda backup do que substitui.
 
 **O lvl9 respeita o host.** Numa máquina sem interface gráfica ele entra no **modo servidor** e não
-instala nada gráfico: nem XFCE, nem xrdp, nem fontes. Onde já existe um desktop, ele configura
+instala nada gráfico: nem XFCE, nem xrdp, nem fontes. Onde o XFCE já está instalado, ele configura
 também o XFCE e o xrdp.
+
+**A parte gráfica é só para XFCE.** Terminal, atalhos, fontes e xrdp são feitos e testados apenas
+no XFCE. Se a máquina usa outra interface (GNOME, KDE…), o lvl9 instala a parte de terminal e as
+Nerd Fonts, para o prompt aparecer direito, e avisa. O XFCE só entra ao lado da sua interface se
+você disser sim na tela de escolhas, ou pedir com `LVL9_MODO=desktop`; a interface que você já usa
+não é removida.
 
 <p align="center">
   <img src="docs/img/instalador.gif" alt="O instalador: verificações, escolhas no gum, passos e resumo" width="100%">
@@ -170,7 +176,8 @@ Marque **Claude Code** na instalação e ele vem completo, no seu usuário e no 
 | **Sistema** | fuso America/Sao_Paulo com NTP · locale pt_BR.UTF-8 |
 | **Opcional** | Tailscale · Claude Code + statusbar-claude + herdr |
 
-¹ Só no modo desktop. Num servidor sem interface gráfica nada disso é instalado.
+¹ Só no modo desktop, que é o do XFCE. As Nerd Fonts vão também para máquinas com outra interface
+gráfica (GNOME, KDE…). Num servidor nada disso é instalado.
 
 Os grupos **Dev**, **Sysadmin** e **Rede** vêm marcados. Desmarque na tela o que não quiser.
 
@@ -266,6 +273,20 @@ Print Screen para abrir a captura de tela</i>.
 </details>
 
 <details>
+<summary><b>Uso GNOME ou KDE. O lvl9 instala o XFCE?</b></summary>
+<br>
+Não sem você pedir. A parte gráfica do lvl9 (xfce4-terminal com Nerd Font e Tokyo Night, flameshot,
+xrdp) é feita e testada só no XFCE. Numa máquina com outra interface e sem XFCE, o instalador avisa
+e pergunta se você quer o XFCE ao lado da interface atual; o padrão é <b>não</b>. Sem terminal
+(automação, Claude Code) ele nem pergunta e não instala.
+<br><br>
+Dizendo não, você fica com a parte de terminal (prompt, CLI, vim, tmux, Docker, Claude Code) e
+com as Nerd Fonts, que são instaladas em qualquer máquina com interface gráfica: escolha a
+JetBrainsMono Nerd Font no seu terminal para os ícones do prompt aparecerem. A resposta fica salva;
+para mudar depois, rode <code>LVL9_MODO=desktop lvl9 update</code>.
+</details>
+
+<details>
 <summary><b>Funciona em servidor sem interface gráfica?</b></summary>
 <br>
 Sim. Sem interface gráfica instalada (nenhuma sessão X ou Wayland, nem display manager), o lvl9
@@ -316,6 +337,7 @@ tests/rapidos.sh                # testes rápidos, sem internet (o GitHub roda e
 tests/docker.sh                 # instala nas 4 distros em containers limpos e confere tudo
 tests/docker.sh ubuntu:24.04    # só uma
 LVL9_MODO=desktop tests/docker.sh debian:13   # o container não tem interface: sem isso é servidor
+LVL9_SIMULA=gnome tests/docker.sh debian:13   # finge GNOME sem XFCE: fontes sim, XFCE não
 tools/screenshots.sh            # regrava as imagens deste README (tudo em Docker)
 tools/bump-versions.sh          # atualiza o versions.lock com as últimas versões
 tools/auto-merge.sh --simula    # mostra o que o auto-merge faria com os PRs abertos

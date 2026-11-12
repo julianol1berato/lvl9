@@ -105,7 +105,7 @@ cmd_doctor() {
     if bin_atualizado "$nome"; then ui_check ok "$nome" "$LOCK_VERSAO"
     else ui_check erro "$nome" "faltando ou fora da versão $LOCK_VERSAO"; (( problemas++ )); fi
   done < "$LVL9_REPO/ferramentas.tsv"
-  if [[ $modo == desktop ]]; then
+  if quer_fontes; then
     # sem pipe: com pipefail, o grep -q fecha o pipe e o fc-list "falha" por SIGPIPE
     if [[ $(fc-list : family 2>/dev/null) == *'JetBrainsMono Nerd Font'* ]]; then ui_check ok "Nerd Fonts" "JetBrainsMono, CaskaydiaMono"
     else ui_check erro "Nerd Fonts" "não encontradas"; (( problemas++ )); fi

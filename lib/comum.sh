@@ -53,27 +53,47 @@ tem_interface_grafica() {
     || [[ -e $r/etc/X11/default-display-manager || -x $r/usr/bin/xfce4-session ]]
 }
 
-# Modo da instalação: desktop (XFCE, xrdp, Nerd Fonts, flameshot) ou servidor (nada gráfico).
+# XFCE instalado? A parte gráfica do lvl9 é feita e testada só no XFCE.
+tem_xfce() {
+  local r=${LVL9_RAIZ:-}   # só os testes trocam a raiz
+  [[ -x $r/usr/bin/xfce4-session ]] || compgen -G "$r/usr/share/xsessions/xfce*.desktop" >/dev/null
+}
+
+# Outra interface gráfica (GNOME, KDE...) e nada de XFCE: o lvl9 fica só no terminal, a não
+# ser que a pessoa aceite o XFCE ao lado (tela de escolhas) ou peça com LVL9_MODO=desktop.
+outra_interface() { tem_interface_grafica && ! tem_xfce; }
+
+# Modo da instalação: desktop (XFCE, xrdp, flameshot) ou servidor (nada de XFCE nem xrdp).
 # Vale o LVL9_MODO do ambiente; senão o da última instalação; senão o que a máquina já tem:
-# o lvl9 nunca coloca interface gráfica numa máquina que não tinha uma.
+# desktop só onde o XFCE já está instalado. O lvl9 nunca coloca interface gráfica numa máquina
+# que não tinha uma, nem o XFCE ao lado de outra interface sem a pessoa pedir.
 lvl9_modo() {
   local salvo
   if [[ -n ${LVL9_MODO:-} ]]; then echo "$LVL9_MODO"; return; fi
   salvo=$(sed -n 's/^LVL9_MODO=//p' "$LVL9_CONFIG/escolhas" 2>/dev/null)
   if [[ -n $salvo ]]; then echo "$salvo"
-  elif tem_interface_grafica; then echo desktop
+  elif tem_xfce; then echo desktop
   else echo servidor; fi
+}
+# Nerd Fonts: no modo desktop e em toda máquina que já tem interface gráfica
+quer_fontes() { [[ $(lvl9_modo) == desktop ]] || tem_interface_grafica; }
+
+# O modo veio do ambiente ou da última instalação (e não da detecção)?
+lvl9_modo_escolhido() {
+  [[ -n ${LVL9_MODO:-} ]] || grep -qs '^LVL9_MODO=' "$LVL9_CONFIG/escolhas"
 }
 modo_desktop() { [[ $(lvl9_modo) == desktop ]]; }
 
 # Passos da instalação para as escolhas atuais (LVL9_MODO, LVL9_GRUPOS, LVL9_TAILSCALE,
 # LVL9_CLAUDE), um "título|arquivo em install/" por linha, na ordem em que rodam.
-# Fontes e desktop só no modo desktop: num servidor quem desenha é o terminal do cliente.
+# XFCE e xrdp só no modo desktop. As Nerd Fonts vão para qualquer máquina com interface gráfica
+# (também GNOME, KDE...): sem elas o prompt não aparece direito, e fonte não muda o desktop de
+# ninguém. Num servidor nada disso: quem desenha é o terminal do cliente.
 lvl9_passos() {
   local desktop=0; [[ ${LVL9_MODO:-} == desktop ]] && desktop=1
   echo "Sistema, fuso e locale|00-sistema.sh"
   echo "Ferramentas (versões fixadas)|10-ferramentas.sh"
-  (( desktop )) && echo "Nerd Fonts|20-fontes.sh"
+  quer_fontes && echo "Nerd Fonts|20-fontes.sh"
   echo "Bash, prompt e comando lvl9|30-shell.sh"
   echo "mise + Node LTS|40-mise.sh"
   echo "Vim halcyon|50-vim.sh"

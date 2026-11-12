@@ -242,9 +242,9 @@ fi
 # grava o histórico a cada comando (depois do prompt, que precisa ler o $? primeiro)
 PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND%;};}history -a"
 
-# ─── Boas-vindas: fastfetch + dica do dia ───────────────────────────
+# ─── Boas-vindas: fastfetch + dica do dia + aviso de problema ───────
 # Não aparece dentro do tmux, do vim, após "lvl9 tema" nem quando desligado:
-#   lvl9 fastfetch off · lvl9 dicas off
+#   lvl9 fastfetch off · lvl9 dicas off · lvl9 avisos off
 __lvl9_pref() { grep -qx "$1=off" "$HOME/.config/lvl9/config" 2>/dev/null && return 1; return 0; }
 __lvl9_dica() {
   local -a linhas
@@ -255,11 +255,22 @@ __lvl9_dica() {
   if [[ $en == - ]]; then nomes=$pt; elif [[ $pt == - ]]; then nomes=$en; else nomes="$en ou $pt"; fi
   printf '\e[2m 💡 dica:\e[0m \e[1;35m%s\e[0m \e[2m— %s · Alt+H mostra todos\e[0m\n' "$nomes" "$desc"
 }
+# Serviço com falha, relatório de crash ou reinício pendente: uma linha, só quando há algo.
+# O detalhe fica no "lvl9 doctor". Roda num subshell para não deixar funções no terminal.
+__lvl9_avisos() {
+  local resumo
+  [[ -r $LVL9_SISTEMA/lib/saude.sh ]] || return 0
+  # shellcheck source=../../lib/saude.sh
+  resumo=$(source "$LVL9_SISTEMA/lib/saude.sh" && saude_resumo) 2>/dev/null
+  [[ -n $resumo ]] || return 0
+  printf '\e[2m ⚠  sistema:\e[0m \e[1;33m%s\e[0m \e[2m— lvl9 doctor mostra os detalhes\e[0m\n' "$resumo"
+}
 if [[ -z ${LVL9_SILENCIO:-} && -z ${TMUX:-} && -z ${VIM:-} ]]; then
   if __lvl9_pref fastfetch && command -v fastfetch &>/dev/null; then
     fastfetch -c "$LVL9_SISTEMA/fastfetch.jsonc" 2>/dev/null
   fi
   __lvl9_pref dicas && __lvl9_dica
+  __lvl9_pref avisos && __lvl9_avisos
 fi
 unset LVL9_SILENCIO
 true   # o último comando define o $? do primeiro prompt

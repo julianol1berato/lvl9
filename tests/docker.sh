@@ -8,13 +8,15 @@ raiz=$(cd -- "$(dirname -- "$0")/.." && pwd)
 imagens=("$@")
 (( ${#imagens[@]} )) || imagens=(debian:12 debian:13 ubuntu:24.04 ubuntu:26.04)
 docker=(docker); docker info &>/dev/null || docker=(sudo docker)
+# LVL9_DOCKER_OPCOES: opções a mais para o docker run (ex.: montar um apt.conf numa rede ruim)
+read -ra LVL9_DOCKER_ARGS <<< "${LVL9_DOCKER_OPCOES:-}"
 mkdir -p "$raiz/tests/logs"
 falhas=0
 for img in "${imagens[@]}"; do
   log="$raiz/tests/logs/${img//[:\/]/-}${LVL9_MODO:+-$LVL9_MODO}.log"
   printf '→ %-24s ' "$img${LVL9_MODO:+ ($LVL9_MODO)}"
   inicio=$SECONDS
-  if "${docker[@]}" run --rm -e LVL9_MODO="${LVL9_MODO:-}" -v "$raiz:/lvl9:ro" "$img" bash /lvl9/tests/dentro.sh > "$log" 2>&1; then
+  if "${docker[@]}" run --rm -e LVL9_MODO="${LVL9_MODO:-}" "${LVL9_DOCKER_ARGS[@]}" -v "$raiz:/lvl9:ro" "$img" bash /lvl9/tests/dentro.sh > "$log" 2>&1; then
     printf '✔ %ss  %s\n' $(( SECONDS - inicio )) "$(grep -m1 '^RESULTADO' "$log")"
   else
     printf '✘ %ss  %s (log: %s)\n' $(( SECONDS - inicio )) "$(grep -m1 '^RESULTADO' "$log")" "$log"

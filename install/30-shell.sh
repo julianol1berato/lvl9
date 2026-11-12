@@ -6,7 +6,7 @@ executa() {
   for f in rc prompt.bash comandos.tsv; do copia "config/bash/$f" "$LVL9_SISTEMA/bash/$f"; done
   for f in "$LVL9_REPO"/config/starship/*.toml; do copia "$f" "$LVL9_SISTEMA/starship/${f##*/}"; done
   copia config/fastfetch.jsonc "$LVL9_SISTEMA/fastfetch.jsonc"
-  for f in lib/comum.sh lib/ui.sh lib/desktop.sh ferramentas.tsv versions.lock; do
+  for f in lib/comum.sh lib/ui.sh lib/desktop.sh lib/saude.sh ferramentas.tsv versions.lock; do
     copia "$f" "$LVL9_SISTEMA/$f"
   done
   copia bin/lvl9 /usr/local/bin/lvl9 755
@@ -21,11 +21,11 @@ executa() {
       copia config/bash/bashrc "$h/.bashrc"
       info "$alvo: ~/.bashrc criado (o anterior foi para o backup)"
     fi
-    # Tema do prompt e preferências (fastfetch/dicas ligados por padrão)
+    # Tema do prompt e preferências (fastfetch/dicas/avisos ligados por padrão)
     como_alvo "$alvo" mkdir -p "$h/.config/lvl9"
     echo "${LVL9_TEMA:-tokyo-night}" | como_alvo "$alvo" tee "$h/.config/lvl9/tema" >/dev/null
     como_alvo "$alvo" test -f "$h/.config/lvl9/config" \
-      || printf 'fastfetch=on\ndicas=on\n' | como_alvo "$alvo" tee "$h/.config/lvl9/config" >/dev/null
+      || printf 'fastfetch=on\ndicas=on\navisos=on\n' | como_alvo "$alvo" tee "$h/.config/lvl9/config" >/dev/null
     como_alvo "$alvo" rm -f "$h/.config/starship/tema-atual"   # formato anterior ao lvl9
   done
 

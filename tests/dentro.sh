@@ -5,6 +5,11 @@
 set -uo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq && apt-get install -y -qq sudo ca-certificates curl git bsdutils >/dev/null
+# LVL9_SIMULA=gnome: a máquina passa a ter uma sessão do GNOME (e nada de XFCE), para conferir
+# que o lvl9 instala as fontes e não coloca o XFCE ao lado sem ninguém pedir
+if [[ ${LVL9_SIMULA:-} == gnome ]]; then
+  mkdir -p /usr/share/wayland-sessions && : > /usr/share/wayland-sessions/gnome.desktop
+fi
 useradd -m -s /bin/bash teste
 echo 'teste ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/teste
 # sem LVL9_AUTO: o container não tem terminal, e o instalador precisa perceber isso sozinho e

@@ -25,7 +25,7 @@ done < ~/.local/share/lvl9/ferramentas.tsv
 echo "== sistema =="
 confere "fuso America/Sao_Paulo" bash -c '[[ $(readlink -f /etc/localtime) == */America/Sao_Paulo ]]'
 confere "locale pt_BR.UTF-8" bash -c 'locale -a | grep -qiE "^pt_BR\.utf-?8$"'
-[[ $modo == desktop ]] && confere "Nerd Fonts" bash -c 'fc-list | grep -q "JetBrainsMono Nerd Font" && fc-list | grep -q "CaskaydiaMono Nerd Font"'
+quer_fontes && confere "Nerd Fonts" bash -c 'fc-list | grep -q "JetBrainsMono Nerd Font" && fc-list | grep -q "CaskaydiaMono Nerd Font"'
 
 echo "== shell =="
 confere "bashrc do usuário carrega o lvl9" grep -q 'lvl9/bash/rc' ~/.bashrc
@@ -57,6 +57,13 @@ if [[ $modo == desktop ]]; then
   confere "regra polkit do colord" sudo test -f /etc/polkit-1/rules.d/45-lvl9-colord.rules
   confere "ajuste do firmware-notifier só onde o snap existe" bash -c 'u=/etc/systemd/user/snap.firmware-updater.firmware-notifier.service
     if [[ -e $u ]]; then test -f "$u.d/10-lvl9-notificacoes.conf"; else ! test -e "$u.d"; fi'
+elif tem_interface_grafica; then
+  echo "== outra interface (GNOME, KDE...): fontes sim, XFCE não =="
+  confere "modo servidor salvo nas escolhas" grep -qx 'LVL9_MODO=servidor' ~/.config/lvl9/escolhas
+  confere "XFCE, xrdp e flameshot não foram instalados" bash -c 'for p in xfce4 xfce4-session xfce4-terminal xrdp xorgxrdp flameshot; do
+    dpkg-query -W -f="\${Status}" "$p" 2>/dev/null | grep -q "ok installed" && { echo "instalado: $p"; exit 1; }; done; exit 0'
+  confere "sem ajuste do XFCE agendado" bash -c '! test -e ~/.config/autostart/lvl9-desktop.desktop'
+  confere "lvl9 doctor confere as fontes" bash -c 'lvl9 doctor | grep -q "Nerd Fonts"'
 else
   echo "== servidor: nada gráfico =="
   confere "modo servidor salvo nas escolhas" grep -qx 'LVL9_MODO=servidor' ~/.config/lvl9/escolhas

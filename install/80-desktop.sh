@@ -2,8 +2,9 @@
 executa() {
   # shellcheck source=../lib/desktop.sh
   source "$LVL9_REPO/lib/desktop.sh"
+  # Só chega aqui sem XFCE quem pediu: "sim" na tela de escolhas ou LVL9_MODO=desktop
   if ! tem xfce4-session; then
-    info "XFCE não encontrado; instalando"
+    info "XFCE não encontrado; instalando (a pedido)"
     apt_instala xfce4 xfce4-terminal dbus-x11
   fi
   apt_instala xfce4-terminal flameshot

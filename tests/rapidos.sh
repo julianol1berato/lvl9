@@ -64,19 +64,56 @@ printf 'LVL9_GRUPOS="base dev"\nLVL9_TEMA=tokyo-night\n' > "$escolhas"
 confere "escolhas antigas, sem modo: vale a detecção" igual desktop lvl9 LVL9_RAIZ="$xfce" -- lvl9_modo
 rm -f "$escolhas"
 
+# A parte gráfica é só para XFCE: outra interface não vira desktop sem a pessoa pedir
+echo "== XFCE ou nada gráfico =="
+gnome_xfce=$(maquina gnomexfce usr/share/wayland-sessions/gnome.desktop usr/bin/xfce4-session)
+confere "sessão xfce.desktop: tem XFCE" lvl9 LVL9_RAIZ="$xfce" -- tem_xfce
+confere "xfce4-session instalado: tem XFCE" lvl9 LVL9_RAIZ="$binxfce" -- tem_xfce
+confere "GNOME: não tem XFCE" lvl9 LVL9_RAIZ="$gnome" -- ! tem_xfce
+confere "só display manager: não tem XFCE" lvl9 LVL9_RAIZ="$dm" -- ! tem_xfce
+confere "GNOME sem XFCE é outra interface" lvl9 LVL9_RAIZ="$gnome" -- outra_interface
+confere "GNOME com XFCE não é outra interface" lvl9 LVL9_RAIZ="$gnome_xfce" -- ! outra_interface
+confere "servidor não é outra interface" lvl9 LVL9_RAIZ="$servidor" -- ! outra_interface
+confere "GNOME sem XFCE → servidor (só terminal)" igual servidor lvl9 LVL9_RAIZ="$gnome" -- lvl9_modo
+confere "GNOME sem XFCE: quer as Nerd Fonts" lvl9 LVL9_RAIZ="$gnome" -- quer_fontes
+confere "XFCE: quer as Nerd Fonts" lvl9 LVL9_RAIZ="$xfce" -- quer_fontes
+confere "servidor: não quer fontes" lvl9 LVL9_RAIZ="$servidor" -- ! quer_fontes
+confere "servidor com LVL9_MODO=desktop: quer fontes" lvl9 LVL9_RAIZ="$servidor" LVL9_MODO=desktop -- quer_fontes
+confere "display manager sem XFCE → servidor" igual servidor lvl9 LVL9_RAIZ="$dm" -- lvl9_modo
+confere "xfce4-session instalado → desktop" igual desktop lvl9 LVL9_RAIZ="$binxfce" -- lvl9_modo
+confere "GNOME com XFCE ao lado → desktop" igual desktop lvl9 LVL9_RAIZ="$gnome_xfce" -- lvl9_modo
+confere "no GNOME, LVL9_MODO=desktop vale (a pedido)" igual desktop lvl9 LVL9_RAIZ="$gnome" LVL9_MODO=desktop -- lvl9_modo
+confere "sem ambiente nem escolhas: modo não foi escolhido" lvl9 LVL9_RAIZ="$gnome" -- ! lvl9_modo_escolhido
+confere "LVL9_MODO no ambiente: modo escolhido" lvl9 LVL9_RAIZ="$gnome" LVL9_MODO=servidor -- lvl9_modo_escolhido
+printf 'LVL9_MODO=servidor\n' > "$escolhas"
+confere "modo salvo (já respondeu antes): não pergunta de novo" lvl9 LVL9_RAIZ="$gnome" -- lvl9_modo_escolhido
+rm -f "$escolhas"
+pergunta_segura() {   # a pergunta do XFCE: padrão "não", nunca sem terminal, e só ela liga o desktop
+  local trecho; trecho=$(sed -n '/^if (( pergunta_xfce )); then$/,/^fi$/p' "$raiz/install.sh")
+  [[ -n $trecho ]] || { echo "pergunta do XFCE não encontrada no install.sh"; return 1; }
+  grep -q '! auto && ui_confirma "Instalar o XFCE ao lado.*" nao' <<< "$trecho" || { echo "a pergunta precisa de terminal e de padrão não"; return 1; }
+  grep -q 'outra_interface && ! lvl9_modo_escolhido' "$raiz/install.sh" || { echo "condição da pergunta mudou"; return 1; }
+  # fora do passo de desktop, nenhum passo instala o XFCE
+  ! grep -ln 'apt_instala.*xfce4' "$raiz"/install/*.sh | grep -v '80-desktop.sh' || { echo "XFCE instalado fora do 80-desktop.sh"; return 1; }
+}
+confere "XFCE ao lado de outra interface: só com um sim, no terminal" pergunta_segura
+
 # ─── Passos da instalação ───────────────────────────────────────────
 echo "== passos de cada modo =="
 passos() { lvl9 "$@" -- lvl9_passos | cut -d'|' -f2 | tr '\n' ' '; }
 tudo=(LVL9_GRUPOS="base dev sysadmin rede" LVL9_TAILSCALE=sim LVL9_CLAUDE=sim)
 confere "servidor: nada de fontes, XFCE ou xrdp" igual \
   "00-sistema.sh 10-ferramentas.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh 60-git.sh 70-docker.sh 90-tailscale.sh 95-claude.sh " \
-  passos LVL9_MODO=servidor "${tudo[@]}"
+  passos LVL9_MODO=servidor LVL9_RAIZ="$servidor" "${tudo[@]}"
+confere "outra interface (GNOME): fontes sim, XFCE e xrdp não" igual \
+  "00-sistema.sh 10-ferramentas.sh 20-fontes.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh 60-git.sh 70-docker.sh 90-tailscale.sh 95-claude.sh " \
+  passos LVL9_RAIZ="$gnome" LVL9_MODO=servidor "${tudo[@]}"
 confere "desktop: com fontes, XFCE e xrdp" igual \
   "00-sistema.sh 10-ferramentas.sh 20-fontes.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh 60-git.sh 70-docker.sh 80-desktop.sh 85-xrdp.sh 90-tailscale.sh 95-claude.sh " \
   passos LVL9_MODO=desktop "${tudo[@]}"
 confere "só o base, sem opcionais" igual \
   "00-sistema.sh 10-ferramentas.sh 30-shell.sh 40-mise.sh 50-vim.sh 55-tmux.sh " \
-  passos LVL9_MODO=servidor LVL9_GRUPOS=base LVL9_TAILSCALE=nao LVL9_CLAUDE=nao
+  passos LVL9_MODO=servidor LVL9_RAIZ="$servidor" LVL9_GRUPOS=base LVL9_TAILSCALE=nao LVL9_CLAUDE=nao
 existem() {
   local f lista; lista=$(passos LVL9_MODO=desktop "${tudo[@]}")
   [[ $(wc -w <<< "$lista") -ge 10 ]] || { echo "lista de passos vazia: $lista"; return 1; }
@@ -84,7 +121,7 @@ existem() {
 }
 confere "todo passo listado existe em install/" existem
 sem_grafico() {   # os passos de servidor não instalam pacote gráfico
-  local f lista; lista=$(passos LVL9_MODO=servidor "${tudo[@]}")
+  local f lista; lista=$(passos LVL9_MODO=servidor LVL9_RAIZ="$servidor" "${tudo[@]}")
   [[ $(wc -w <<< "$lista") -ge 8 ]] || { echo "lista de passos vazia: $lista"; return 1; }
   for f in $lista; do
     if grep -nE 'apt_instala.*\b(xfce4|xrdp|xorgxrdp|flameshot|fontconfig|dbus-x11)\b|apt_instala [^#]*\bxclip\b' "$raiz/install/$f" \
